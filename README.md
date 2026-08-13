@@ -1,5 +1,9 @@
 # esphome-xbot
 
+![tests](https://github.com/dzikus/esphome-xbot/actions/workflows/test.yml/badge.svg?branch=main)
+
+<a href="https://www.buymeacoffee.com/dzikus" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ESPHome external component for electric scooters built around an XBOT / LebiTEC
 controller (Guangzhou Lebi Robotics). It is an OEM part, so it turns up unbadged
 inside scooters sold under other brands, and on its own as an aftermarket
