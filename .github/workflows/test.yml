@@ -90,7 +90,7 @@ jobs:
           key: ${{ runner.os }}-esphome-${{ hashFiles('.github/ci-build.yaml') }}
           restore-keys: ${{ runner.os }}-esphome-
       - name: Install ESPHome
-        run: pip install "esphome==2026.7.3"
+        run: pip install "esphome==2026.7.4"
       - name: Compile full component
         run: |
           set -euo pipefail
