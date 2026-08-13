@@ -1,0 +1,24 @@
+# ESPHome / PlatformIO build artifacts
+.esphome/
+.pio/
+tests/.pio/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Ruff cache
+.ruff_cache/
+
+# Local secrets (never publish)
+secrets.yaml
+*-secrets.yaml
+
+# IDE / editor (devcontainer IntelliSense output)
+.vscode/c_cpp_properties.json
+.vscode/compile_commands.json
+
+# ESPHome writes these into .github when the CI config is built there
+.github/.esphome/
+.github/.gitignore

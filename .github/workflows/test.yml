@@ -1,0 +1,127 @@
+name: tests
+on:
+  push:
+    branches: [main]
+    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml"]
+  pull_request:
+    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml"]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    name: ruff + pre-commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Cache pre-commit
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: ${{ runner.os }}-pre-commit-
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit (ruff lint + format + hygiene)
+        run: pre-commit run --all-files --show-diff-on-failure
+  unit-tests:
+    name: protocol unit tests (native)
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Cache PlatformIO
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-${{ hashFiles('tests/platformio.ini') }}
+          restore-keys: ${{ runner.os }}-pio-
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Run protocol unit tests
+        run: |
+          set -euo pipefail
+          # The wrapper exits on SIGHUP and reports ERRORED on a green run, so
+          # its status is not the answer. The binary it built is.
+          pio test -d tests -e native < /dev/null || echo "pio wrapper rc=$?, binary decides"
+          tests/.pio/build/native/program
+      # esphome demotes -Werror to warnings on the idf build, so a conversion
+      # this component introduces would never stop a firmware compile. The
+      # signed-register bug that published -2 degC as 6551.6 was one of these.
+      - name: Compile the esphome-free layers under strict warnings
+        run: |
+          set -euo pipefail
+          STRICT="-std=gnu++20 -fsyntax-only -Werror -Wall -Wextra -Wconversion
+                  -Wsign-conversion -Wshadow -Wold-style-cast -I components/xbot"
+          g++ $STRICT components/xbot/xbot_protocol.cpp
+          for h in xbot_entity_logic.h xbot_receive.h; do
+            echo "#include \"$h\"" | g++ $STRICT -x c++ -
+          done
+  esphome-build:
+    name: esphome compile (full component)
+    needs: unit-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Cache PlatformIO
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-esphome-${{ hashFiles('.github/ci-build.yaml') }}
+          restore-keys: ${{ runner.os }}-esphome-
+      - name: Install ESPHome
+        run: pip install esphome
+      - name: Compile full component
+        run: |
+          set -euo pipefail
+          esphome compile .github/ci-build.yaml
+  config-floor:
+    name: config check at the ESPHome floor
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+      # Pin to the declared floor so min_version is actually exercised, and
+      # validate the published example (which the compile job never touches).
+      - name: Install ESPHome (component floor)
+        run: pip install "esphome==2026.1.0"
+      - name: Provide dummy secrets for the example
+        run: |
+          cat > secrets.yaml <<'EOF'
+          wifi_ssid: ci
+          wifi_password: ci-password-123
+          api_encryption_key: cJlpAFA6N5wBzUgFSpMSo8QVMXZzKXwUBG6oHtGOb6Q=
+          ota_password: ci-ota-password
+          xbot_mac: AA:BB:CC:DD:EE:FF
+          EOF
+      - name: Validate example and CI configs
+        run: |
+          set -euo pipefail
+          esphome config example.yaml
+          esphome config .github/ci-build.yaml

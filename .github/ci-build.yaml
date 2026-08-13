@@ -1,0 +1,86 @@
+# CI-only configuration that compiles the component with every entity platform
+# so a build-breaking change in any source file fails CI. Not meant for
+# flashing. Uses a dummy BLE MAC; no device is contacted at compile.
+esphome:
+  name: ci-build
+  # Matches the floor declared by require_esphome_version in the component.
+  min_version: 2026.1.0
+  devices:
+    - id: dev_second
+      name: "CI second vehicle"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [xbot]
+
+esp32_ble_tracker:
+
+ble_client:
+  - id: ble_test
+    mac_address: AA:BB:CC:DD:EE:FF
+  - id: ble_second
+    mac_address: AA:BB:CC:DD:EE:00
+
+xbot:
+  - id: hub_test
+    ble_client_id: ble_test
+    update_interval: 60s
+    # Force the pinned-profile branch of the codegen to compile as well.
+    profile: nus
+  # A second hub makes the name-prefix codegen run: with more than one vehicle
+  # the default entity names are prefixed so they stop sharing an api key.
+  # This one pins the wording; hub_test derives it from its id.
+  - id: hub_second
+    ble_client_id: ble_second
+    name_prefix: "Second"
+
+# Every platform auto-creates its full entity set, so a bare platform block
+# compiles every entity codegen path.
+sensor:
+  - platform: xbot
+    xbot_id: hub_test
+
+binary_sensor:
+  - platform: xbot
+    xbot_id: hub_test
+
+text_sensor:
+  - platform: xbot
+    xbot_id: hub_test
+
+switch:
+  - platform: xbot
+    xbot_id: hub_test
+  # One extra platform pair for the second hub: enough to compile the explicit
+  # name_prefix path without doubling the entity set.
+  - platform: xbot
+    xbot_id: hub_second
+    device_id: dev_second
+
+number:
+  - platform: xbot
+    xbot_id: hub_test
+
+select:
+  - platform: xbot
+    xbot_id: hub_test
+
+button:
+  - platform: xbot
+    xbot_id: hub_test
+
+lock:
+  - platform: xbot
+    xbot_id: hub_test
+  - platform: xbot
+    xbot_id: hub_second
+    device_id: dev_second

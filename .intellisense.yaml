@@ -1,0 +1,61 @@
+esphome:
+  name: xbot-intellisense
+  min_version: 2026.1.0
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [xbot]
+
+esp32_ble_tracker:
+
+ble_client:
+  - id: ble_probe
+    mac_address: 00:00:00:00:00:00
+
+xbot:
+  - id: hub_probe
+    ble_client_id: ble_probe
+    update_interval: 300s
+    # Force the non-auto branch of the profile codegen to compile as well.
+    profile: nus
+
+sensor:
+  - platform: xbot
+    xbot_id: hub_probe
+
+binary_sensor:
+  - platform: xbot
+    xbot_id: hub_probe
+
+text_sensor:
+  - platform: xbot
+    xbot_id: hub_probe
+
+switch:
+  - platform: xbot
+    xbot_id: hub_probe
+
+number:
+  - platform: xbot
+    xbot_id: hub_probe
+
+select:
+  - platform: xbot
+    xbot_id: hub_probe
+
+button:
+  - platform: xbot
+    xbot_id: hub_probe
+
+lock:
+  - platform: xbot
+    xbot_id: hub_probe

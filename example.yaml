@@ -1,0 +1,86 @@
+# Minimal standalone node for an XBOT / LebiTEC scooter controller.
+# Copy it, fill in secrets.yaml, flash.
+#
+# The vehicle answers one BLE connection at a time. While this node holds the
+# link the vendor app cannot connect; the Bluetooth switch below releases it.
+
+esphome:
+  name: xbot-node
+  min_version: 2026.1.0
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# Consuming the component as a package instead of a local clone:
+#   external_components:
+#     - source: github://dzikus/esphome-xbot
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [xbot]
+
+ble_client:
+  - id: ble_scooter
+    mac_address: !secret xbot_mac
+
+xbot:
+  - id: scooter
+    ble_client_id: ble_scooter
+    # auto picks the transport from the discovered services. Pin it only if a
+    # scan proved auto-detection lands on the wrong one.
+    profile: auto
+    update_interval: 300s
+
+# Telemetry, read-only.
+sensor:
+  - platform: xbot
+    xbot_id: scooter
+
+binary_sensor:
+  - platform: xbot
+    xbot_id: scooter
+
+text_sensor:
+  - platform: xbot
+    xbot_id: scooter
+
+# These four write to the vehicle. Speed limits, the riding mode and the lock
+# change how it behaves on the road; drop the platforms you do not want. The
+# Bluetooth switch is the exception, it only releases the link locally.
+switch:
+  - platform: xbot
+    xbot_id: scooter
+
+number:
+  - platform: xbot
+    xbot_id: scooter
+
+select:
+  - platform: xbot
+    xbot_id: scooter
+
+lock:
+  - platform: xbot
+    xbot_id: scooter
+
+# Read-only: asks for a fresh poll.
+button:
+  - platform: xbot
+    xbot_id: scooter
