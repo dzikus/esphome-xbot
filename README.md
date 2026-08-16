@@ -172,7 +172,7 @@ See [example.yaml](example.yaml) for a complete node.
 | `profile` | enum | `auto` | `auto`, `nus`, `ae00`, `ffe0`, `fff0-f3f7`, `fff0-f2f1`. Pin only if auto-detection picks wrong. |
 | `probe_repeat` | int 1-5 | `2` | How many times each register block is asked for per sweep. A lost request is indistinguishable from a register the vehicle does not have, and nothing reports the loss, so the default asks twice. On the link this was measured on, one ask answered 19.8 blocks out of 20 and halved the sweep; set `1` if your link is good. |
 | `obfuscation_key` | int 0-255 | taken from the vehicle name | The byte every frame is xored with. The name decides it, and this overrides that decision. Set it only when the log says `nothing parses` and names a key that did: `framing found in the clear` means `0`. Guessing here produces a vehicle that answers nothing, which looks the same as one that is switched off. |
-| `name_prefix` | string, max 48 chars | derived when more than one hub is configured, empty otherwise | Prepended to every default entity name on this hub, so two vehicles do not both call a sensor `Battery Level`. Derived from the hub id with a leading `xbot_` stripped, so `xbot_scooter_b` gives `Scooter B Battery Level`. Set it explicitly to choose the wording, or to `""` to opt out. Names you write yourself are never touched. |
+| `name_prefix` | string, max 48 chars | empty | Prepended to every default entity name on this hub, so two vehicles do not both call a sensor `Battery Level`. Opt-in: nothing is prefixed unless you write it here. Names you write yourself are never touched. |
 
 Every entity platform takes `xbot_id` to say which vehicle it belongs to, and
 `device_id` to place its entities on a sub-device.
@@ -191,17 +191,11 @@ An entity's api key is a hash of its name alone, with no device in it, so two
 vehicles carrying an entity of the same name share a key.
 
 Whether that collides depends on how the state is consumed, and only the native
-api has been used here. The prefix removes the question rather than answering
-it.
+api has been used here.
 
-So once more than one hub is configured, each one's default entity names are
-prefixed, taking the prefix from the hub id with a leading `xbot_` stripped:
-
-```
-hub_a -> "Hub A Battery Level"        xbot_scooter_b -> "Scooter B Battery Level"
-```
-
-Set `name_prefix` on each hub to choose the wording:
+Nothing is renamed for you. Configuring a second vehicle without `name_prefix`
+logs a warning at validation and leaves the names as they are. Set it per hub to
+separate them:
 
 ```yaml
 xbot:
@@ -213,15 +207,17 @@ xbot:
     name_prefix: "Scooter B"
 ```
 
-Adding a second vehicle renames the first one's entities, because the prefix
-only appears once there is something to tell apart. Home Assistant then sees new
-entity ids, and history, dashboards and automations built on the old ones stop
-following. Put `name_prefix: ""` on the vehicle that was there first to keep its
-names as they are.
+`Battery Level` on `hub_a` then reads `Scooter A Battery Level`. Adding a prefix
+to a vehicle that is already in use renames its entities, so Home Assistant sees
+new entity ids and history, dashboards and automations built on the old ones
+stop following. `name_prefix: ""` keeps the bare names and silences the warning
+for that hub.
 
-Set it to `""` to keep the bare names, which is safe if you only use the native
-API. A single-vehicle node is never prefixed. It cannot collide with itself, and
-prefixing it would rename entities that are already in use.
+The prefix adds to the sub-device name rather than replacing it, so a vehicle
+whose `device_id` and `name_prefix` read the same gets an entity id carrying
+both. Pick a prefix different from the device name, or leave it empty and rename
+only the entities that collide.
+
 Names you write out yourself are never touched either way.
 
 Each vehicle still needs its own `device_id` so the duplicate-name check passes:
@@ -246,9 +242,8 @@ sensor:
 ## Entities
 
 Every platform creates its full set from a bare stanza. Names and units below
-are the defaults for a node with one vehicle; with more than one they carry the
-prefix described above. To change one, write its yaml key with the options under
-it; to leave one out, set it to false:
+are the defaults; with `name_prefix` set they carry it. To change one, write its
+yaml key with the options under it; to leave one out, set it to false:
 
 ```yaml
 sensor:

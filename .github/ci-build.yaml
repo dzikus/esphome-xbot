@@ -36,9 +36,8 @@ xbot:
     update_interval: 60s
     # Force the pinned-profile branch of the codegen to compile as well.
     profile: nus
-  # A second hub makes the name-prefix codegen run: with more than one vehicle
-  # the default entity names are prefixed so they stop sharing an api key.
-  # This one pins the wording; hub_test derives it from its id.
+  # A second hub compiles the name-prefix codegen and the multi-vehicle
+  # validation. hub_test is left without one so the warning path runs too.
   - id: hub_second
     ble_client_id: ble_second
     name_prefix: "Second"
