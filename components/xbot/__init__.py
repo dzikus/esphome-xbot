@@ -1,3 +1,5 @@
+import logging
+
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
@@ -12,6 +14,8 @@ from esphome.const import (
 from esphome.core import CORE
 
 from .const import POLL_TABLE
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "xbot"
 
@@ -90,29 +94,15 @@ def inject_entity_defaults(config, keys, hidden=frozenset(), opt_in=frozenset())
 
 def hub_name_prefix(hub_id):
     # An entity's api key is a hash of its name alone, so two vehicles taking
-    # the same default name share keys. Whether that collides depends on how the
-    # state is consumed; only the native api has been used here.
+    # the same default name share keys. Opt-in rather than applied on sight:
+    # renaming entities changes the ids that history and automations follow, and
+    # a prefix chosen here would also repeat a sub-device name the user already
+    # gave the vehicle.
     target = str(hub_id)
-    hubs = CORE.config.get(DOMAIN, [])
-    conf = next((h for h in hubs if str(h.get(CONF_ID)) == target), {})
-    explicit = conf.get(CONF_NAME_PREFIX)
-    if explicit is not None:
-        return explicit.strip()
-    # A lone vehicle cannot collide with itself, and prefixing it would rename
-    # every entity of every existing single-vehicle install.
-    if len(hubs) < 2:
-        return ""
-    return prefix_from_hub_id(target)
-
-
-def prefix_from_hub_id(hub_id):
-    text = str(hub_id)
-    if text.startswith(f"{DOMAIN}_"):
-        text = text[len(DOMAIN) + 1 :]
-    text = text.replace("_", " ").replace("-", " ")
-    # Only the leading letter of each word is touched, so an id like xbot_G30Max
-    # keeps its own capitalisation.
-    return " ".join(w[:1].upper() + w[1:] for w in text.split())
+    for hub in CORE.config.get(DOMAIN, []):
+        if str(hub.get(CONF_ID)) == target:
+            return hub.get(CONF_NAME_PREFIX, "").strip()
+    return ""
 
 
 def apply_entity_prefix(config, keys, prefix):
@@ -160,7 +150,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(cv.COMPONENT_SCHEMA)
     .extend(ble_client.BLE_CLIENT_SCHEMA),
-    cv.require_esphome_version(2026, 1, 0),
+    cv.require_esphome_version(2026, 2, 0),
 )
 
 
@@ -185,7 +175,28 @@ def _one_hub_per_ble_client(config):
     return config
 
 
-FINAL_VALIDATE_SCHEMA = _one_hub_per_ble_client
+def _warn_on_shared_default_names(config):
+    hubs = fv.full_config.get().get(DOMAIN, [])
+    if len(hubs) > 1 and CONF_NAME_PREFIX not in config:
+        _LOGGER.warning(
+            "xbot '%s' has no name_prefix and %d vehicles are configured. "
+            "Their entities keep the same default names, so they share api "
+            "keys and mqtt topics, and only a client that reads device_id can "
+            "tell the vehicles apart. Set name_prefix per hub to give each "
+            "vehicle its own names, or name_prefix: '' to keep the current "
+            "ones and silence this.",
+            config[CONF_ID],
+            len(hubs),
+        )
+    return config
+
+
+def _final_validate(config):
+    _one_hub_per_ble_client(config)
+    return _warn_on_shared_default_names(config)
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
 
 
 async def to_code(config):
