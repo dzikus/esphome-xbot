@@ -4,7 +4,7 @@
 esphome:
   name: ci-build
   # Matches the floor declared by require_esphome_version in the component.
-  min_version: 2026.1.0
+  min_version: 2026.2.0
   devices:
     - id: dev_second
       name: "CI second vehicle"

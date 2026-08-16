@@ -150,7 +150,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(cv.COMPONENT_SCHEMA)
     .extend(ble_client.BLE_CLIENT_SCHEMA),
-    cv.require_esphome_version(2026, 1, 0),
+    cv.require_esphome_version(2026, 2, 0),
 )
 
 
