@@ -2,14 +2,19 @@ name: tests
 on:
   push:
     branches: [main]
-    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml"]
+    paths: ["components/xbot/**", "tests/**", "scripts/**", ".github/**", ".devcontainer/requirements.txt", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
   pull_request:
-    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml"]
+    paths: ["components/xbot/**", "tests/**", "scripts/**", ".github/**", ".devcontainer/requirements.txt", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
+  workflow_call:
+  workflow_dispatch:
 permissions:
   contents: read
+env:
+  ESPHOME_VERSION: "2026.8.1"
+  ESPHOME_FLOOR: "2026.2.0"
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   lint:
     name: ruff + pre-commit
@@ -22,6 +27,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.14"
+          cache: pip
       - name: Cache pre-commit
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -29,7 +35,10 @@ jobs:
           key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
           restore-keys: ${{ runner.os }}-pre-commit-
       - name: Install pre-commit
-        run: pip install "pre-commit==4.6.0"
+        run: |
+          set -euo pipefail
+          pin="$(grep -E '^pre-commit==' .devcontainer/requirements.txt)"
+          pip install "${pin}"
       - name: Run pre-commit (ruff lint + format + hygiene)
         run: pre-commit run --all-files --show-diff-on-failure
   unit-tests:
@@ -44,6 +53,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.14"
+          cache: pip
       - name: Cache PlatformIO
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -51,29 +61,34 @@ jobs:
           key: ${{ runner.os }}-pio-${{ hashFiles('tests/platformio.ini') }}
           restore-keys: ${{ runner.os }}-pio-
       - name: Install PlatformIO
-        run: pip install "platformio==6.1.19"
+        run: |
+          set -euo pipefail
+          pin="$(grep -E '^platformio==' .devcontainer/requirements.txt)"
+          pip install "${pin}"
       - name: Run protocol unit tests
         run: |
           set -euo pipefail
           # The wrapper exits on SIGHUP and reports ERRORED on a green run, so
           # its status is not the answer. The binary it built is.
           pio test -d tests -e native < /dev/null || echo "pio wrapper rc=$?, binary decides"
-          tests/.pio/build/native/program
+          tests/.pio/build/native/program | tee test-output.txt
+          # rc=0 without the closing line means the binary stopped early.
+          grep -qE '^[1-9][0-9]* Tests 0 Failures 0 Ignored' test-output.txt
       # esphome demotes -Werror to warnings on the idf build, so a conversion
       # this component introduces would never stop a firmware compile. The
       # signed-register bug that published -2 degC as 6551.6 was one of these.
       - name: Compile the esphome-free layers under strict warnings
         run: |
           set -euo pipefail
-          STRICT="-std=gnu++20 -fsyntax-only -Werror -Wall -Wextra -Wconversion
-                  -Wsign-conversion -Wshadow -Wold-style-cast -I components/xbot"
-          g++ $STRICT components/xbot/xbot_protocol.cpp
+          strict=(-std=gnu++20 -fsyntax-only -Werror -Wall -Wextra -Wconversion
+                  -Wsign-conversion -Wshadow -Wold-style-cast -I components/xbot)
+          g++ "${strict[@]}" components/xbot/xbot_protocol.cpp
           for h in xbot_entity_logic.h xbot_receive.h; do
-            echo "#include \"$h\"" | g++ $STRICT -x c++ -
+            echo "#include \"$h\"" | g++ "${strict[@]}" -x c++ -
           done
-  esphome-build:
-    name: esphome compile (full component)
-    needs: unit-tests
+  clang-tidy:
+    name: clang-tidy (esp32 compile database)
+    needs: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -83,19 +98,64 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.14"
+          cache: pip
       - name: Cache PlatformIO
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
-          path: ~/.platformio
-          key: ${{ runner.os }}-esphome-${{ hashFiles('.github/ci-build.yaml') }}
-          restore-keys: ${{ runner.os }}-esphome-
-      - name: Install ESPHome
-        run: pip install "esphome==2026.7.4"
-      - name: Compile full component
+          path: |
+            ~/.platformio
+            ~/.cache/esphome
+          key: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-riscv-tidy
+          restore-keys: |
+            ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-riscv
+            ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-
+      - name: Install ESPHome and clang-tidy
         run: |
           set -euo pipefail
-          esphome compile .github/ci-build.yaml
-  config-floor:
+          pin="$(grep -E '^clang-tidy==' .devcontainer/requirements.txt)"
+          pip install "esphome==${ESPHOME_VERSION}" "${pin}"
+      - name: Run clang-tidy
+        run: CI_CONFIG=.github/ci-build.yaml bash tests/run_clang_tidy.sh
+  esphome-build:
+    name: esphome compile (${{ matrix.arch }})
+    needs: unit-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: xtensa
+            boards: esp32dev esp32-s3-devkitc-1
+          - arch: riscv
+            boards: esp32-c3-devkitm-1 esp32-c6-devkitc-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Cache PlatformIO
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/esphome
+          key: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-${{ matrix.arch }}
+          restore-keys: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-
+      - name: Install ESPHome
+        run: pip install "esphome==${ESPHOME_VERSION}"
+      - name: Run codegen unit tests
+        run: python -m unittest discover -s tests/python -v
+      - name: Compile every board, failing on any warning from the component
+        run: |
+          set -euo pipefail
+          for board in ${{ matrix.boards }}; do
+            bash tests/check_esp32_warnings.sh .github/ci-build.yaml "$board"
+          done
+  config-build-floor:
     name: config check and build at the ESPHome floor
     needs: lint
     runs-on: ubuntu-24.04
@@ -107,10 +167,19 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.14"
+          cache: pip
+      - name: Cache PlatformIO
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/esphome
+          key: ${{ runner.os }}-idf-${{ env.ESPHOME_FLOOR }}-xtensa
+          restore-keys: ${{ runner.os }}-idf-${{ env.ESPHOME_FLOOR }}-
       # Pin to the declared floor so min_version is actually exercised, and
       # validate the published example (which the compile job never touches).
       - name: Install ESPHome (component floor)
-        run: pip install "esphome==2026.2.0"
+        run: pip install "esphome==${ESPHOME_FLOOR}"
       - name: Provide dummy secrets for the example
         run: |
           cat > secrets.yaml <<'EOF'
@@ -120,11 +189,12 @@ jobs:
           ota_password: ci-ota-password
           xbot_mac: AA:BB:CC:DD:EE:FF
           EOF
-      - name: Validate example and CI configs
+      - name: Validate example, CI and IntelliSense configs
         run: |
           set -euo pipefail
           esphome config example.yaml
           esphome config .github/ci-build.yaml
+          esphome config .intellisense.yaml
       - name: Compile at the floor
         run: |
           set -euo pipefail

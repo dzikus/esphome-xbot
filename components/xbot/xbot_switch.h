@@ -5,12 +5,10 @@
 #include "esphome/components/switch/switch.h"
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
-
 #include "xbot.h"
 #include "xbot_entity_logic.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // Local only; nothing is written to the vehicle either way. The vehicle accepts
 // a single connection, so reaching it from a phone means letting go here first.
@@ -48,7 +46,8 @@ class XbotRegisterSwitch : public switch_::Switch, public Parented<XbotHub>, pub
     bool restored;
     // Only what is shown is restored. The esphome restore modes go through
     // write_state, which would push the value to the vehicle on every reboot.
-    if (this->store_.load(&restored)) this->publish_state(restored);
+    if (this->store_.load(&restored))
+      this->publish_state(restored);
     this->parent_->register_persist([this]() { return this->store_.flush(); });
     // The other flags in a shared register are only known from a live read. A
     // value carried over from the last connection may have been changed from
@@ -59,7 +58,8 @@ class XbotRegisterSwitch : public switch_::Switch, public Parented<XbotHub>, pub
       this->have_raw_ = true;
       bool on = this->bit_mask_ != 0 ? (raw & this->bit_mask_) != 0 : raw != 0;
       this->store_.stage(on);
-      if (!this->has_state() || this->state != on) this->publish_state(on);
+      if (!this->has_state() || this->state != on)
+        this->publish_state(on);
     });
   }
 
@@ -68,15 +68,13 @@ class XbotRegisterSwitch : public switch_::Switch, public Parented<XbotHub>, pub
     uint16_t value = want ? 1 : 0;
     if (this->bit_mask_ != 0) {
       if (!this->have_raw_) {
-        ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: other flags in it not read yet",
-                 this->register_);
+        ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: other flags in it not read yet", this->register_);
         this->status_momentary_warning("write");
         return;
       }
       value = apply_bit(this->raw_, this->bit_mask_, want);
     }
-    if (this->parent_->write_register(this->dest_, this->cmd_, this->register_,
-                                      static_cast<int16_t>(value))) {
+    if (this->parent_->write_register(this->dest_, this->cmd_, this->register_, static_cast<int16_t>(value))) {
       // Shown, not stored. The write goes out unacknowledged, so only a read
       // back from the vehicle is allowed to reach flash; the next sweep does
       // that.
@@ -94,7 +92,6 @@ class XbotRegisterSwitch : public switch_::Switch, public Parented<XbotHub>, pub
   PersistedValue<bool> store_;
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

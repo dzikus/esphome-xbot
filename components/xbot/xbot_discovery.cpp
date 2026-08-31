@@ -2,14 +2,14 @@
 
 #include "xbot_discovery.h"
 
+#include <array>
 #include <cinttypes>
 #include <cstdio>
 #include <string>
 
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 static const char *const TAG = "xbot";
 
@@ -17,28 +17,26 @@ static const uint16_t CCCD_UUID16 = 0x2902;
 static const uint16_t DEVICE_NAME_UUID16 = 0x2A00;
 
 static std::string uuid_str(const esp_bt_uuid_t &u) {
-  char buf[40];
+  std::array<char, 40> buf{};
   if (u.len == ESP_UUID_LEN_16) {
-    snprintf(buf, sizeof(buf), "0000%04x-0000-1000-8000-00805f9b34fb", u.uuid.uuid16);
-    return buf;
+    snprintf(buf.data(), buf.size(), "0000%04x-0000-1000-8000-00805f9b34fb", u.uuid.uuid16);
+    return buf.data();
   }
   if (u.len == ESP_UUID_LEN_32) {
-    snprintf(buf, sizeof(buf), "%08" PRIx32 "-0000-1000-8000-00805f9b34fb", u.uuid.uuid32);
-    return buf;
+    snprintf(buf.data(), buf.size(), "%08" PRIx32 "-0000-1000-8000-00805f9b34fb", u.uuid.uuid32);
+    return buf.data();
   }
   const uint8_t *b = u.uuid.uuid128;
-  snprintf(buf, sizeof(buf), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-           b[15], b[14], b[13], b[12], b[11], b[10], b[9], b[8], b[7], b[6], b[5], b[4], b[3], b[2],
-           b[1], b[0]);
-  return buf;
+  snprintf(buf.data(), buf.size(), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", b[15], b[14],
+           b[13], b[12], b[11], b[10], b[9], b[8], b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0]);
+  return buf.data();
 }
 
 GattWalk walk_gatt(esp_gatt_if_t gattc_if, uint16_t conn_id) {
   GattWalk out;
 
   uint16_t count = 0;
-  esp_gatt_status_t st = esp_ble_gattc_get_attr_count(gattc_if, conn_id, ESP_GATT_DB_ALL, 0x0001,
-                                                      0xFFFF, 0, &count);
+  esp_gatt_status_t st = esp_ble_gattc_get_attr_count(gattc_if, conn_id, ESP_GATT_DB_ALL, 0x0001, 0xFFFF, 0, &count);
   if (st != ESP_GATT_OK) {
     ESP_LOGW(TAG, "attribute count query failed, status=%d", st);
     return out;
@@ -65,18 +63,18 @@ GattWalk walk_gatt(esp_gatt_if_t gattc_if, uint16_t conn_id) {
         current_service = uuid_str(e.uuid);
         break;
       case ESP_GATT_DB_CHARACTERISTIC: {
-        std::string cu = uuid_str(e.uuid);
+        const std::string cu = uuid_str(e.uuid);
         current_char = e.attribute_handle;
         if (e.uuid.len == ESP_UUID_LEN_16 && e.uuid.uuid.uuid16 == DEVICE_NAME_UUID16) {
           out.name_handle = e.attribute_handle;
         }
-        if (!current_service.empty()) out.chars.push_back(DiscoveredChar{current_service, cu});
+        if (!current_service.empty())
+          out.chars.push_back(DiscoveredChar{.service = current_service, .characteristic = cu});
         break;
       }
       case ESP_GATT_DB_DESCRIPTOR:
-        if (e.uuid.len == ESP_UUID_LEN_16 && e.uuid.uuid.uuid16 == CCCD_UUID16 &&
-            current_char != 0) {
-          out.cccds.push_back(CccdEntry{current_char, e.attribute_handle});
+        if (e.uuid.len == ESP_UUID_LEN_16 && e.uuid.uuid.uuid16 == CCCD_UUID16 && current_char != 0) {
+          out.cccds.push_back(CccdEntry{.char_handle = current_char, .cccd_handle = e.attribute_handle});
         }
         break;
       default:
@@ -86,7 +84,6 @@ GattWalk walk_gatt(esp_gatt_if_t gattc_if, uint16_t conn_id) {
   return out;
 }
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

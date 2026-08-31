@@ -334,23 +334,23 @@ def _inject_defaults(config):
     )
 
 
+_REGISTER_SCHEMAS = {
+    cv.Optional(key): _sensor_schema(XbotRegisterSensor, unit, dec, dc, sc, icon, ec)
+    for key, _r, _w, _d, _p, unit, dec, dc, sc, icon, ec, _n in REGISTER_SENSORS
+}
+
+_PRODUCT_SCHEMAS = {
+    cv.Optional(key): _sensor_schema(XbotProductSensor, unit, dec, dc, sc, icon, ec)
+    for key, _a, _b, _d, unit, dec, dc, sc, icon, ec, _n in PRODUCT_SENSORS
+}
+
 CONFIG_SCHEMA = cv.All(
     _inject_defaults,
     XBOT_COMPONENT_SCHEMA.extend(
         {
             cv.Optional(CONF_DEVICE_ID): cv.sub_device_id,
-            **{
-                cv.Optional(key): _sensor_schema(
-                    XbotRegisterSensor, unit, dec, dc, sc, icon, ec
-                )
-                for key, _r, _w, _d, _p, unit, dec, dc, sc, icon, ec, _n in REGISTER_SENSORS
-            },
-            **{
-                cv.Optional(key): _sensor_schema(
-                    XbotProductSensor, unit, dec, dc, sc, icon, ec
-                )
-                for key, _a, _b, _d, unit, dec, dc, sc, icon, ec, _n in PRODUCT_SENSORS
-            },
+            **_REGISTER_SCHEMAS,
+            **_PRODUCT_SCHEMAS,
         }
     ),
 )

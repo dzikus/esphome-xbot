@@ -4,11 +4,9 @@
 
 #include "esphome/components/lock/lock.h"
 #include "esphome/core/component.h"
-
 #include "xbot.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 class XbotRegisterLock : public lock::Lock, public Parented<XbotHub>, public Component {
  public:
@@ -28,13 +26,15 @@ class XbotRegisterLock : public lock::Lock, public Parented<XbotHub>, public Com
       bool on = raw != 0;
       this->store_.stage(on);
       lock::LockState want = on ? lock::LOCK_STATE_LOCKED : lock::LOCK_STATE_UNLOCKED;
-      if (this->state != want) this->publish_state(want);
+      if (this->state != want)
+        this->publish_state(want);
     });
   }
 
  protected:
   void control(const lock::LockCall &call) override {
-    if (!call.get_state().has_value()) return;
+    if (!call.get_state().has_value())
+      return;
     bool want = *call.get_state() == lock::LOCK_STATE_LOCKED;
     if (this->parent_->write_register(this->dest_, this->cmd_, this->register_, want ? 1 : 0)) {
       // Remembering a lost write here would mean the node insists the scooter
@@ -50,7 +50,6 @@ class XbotRegisterLock : public lock::Lock, public Parented<XbotHub>, public Com
   PersistedValue<bool> store_;
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

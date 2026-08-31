@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -7,8 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // Five (service, write, notify) triples, one per Bluetooth module family. Which
 // one a vehicle answers on is only knowable from a live GATT scan.
@@ -31,8 +31,7 @@ struct TransportProfile {
 
 // FFE0 deliberately pairs an ffe0 service with fff-family characteristics. A
 // vehicle exposing ffe0+ffe1 is a sixth case, unmapped.
-extern const TransportProfile PROFILE_TABLE[];
-extern const size_t PROFILE_TABLE_LEN;
+std::span<const TransportProfile> profile_table();
 
 const TransportProfile *profile_by_id(Profile id);
 
@@ -61,13 +60,11 @@ Dialect identify_dialect(std::span<const uint8_t> buf);
 //
 // Written into the caller's buffer. Returns the length, or 0 when out is too
 // small.
-size_t build_request(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t reg,
-                     std::span<const uint8_t> payload);
+size_t build_request(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t reg, std::span<const uint8_t> payload);
 
 // Same frame with a two-byte little-endian payload and the write opcode. Read
 // and write dest are not always the same, so the caller passes both.
-size_t build_write(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t reg,
-                   int16_t value);
+size_t build_write(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t reg, int16_t value);
 
 // Enough for every frame this component builds: header, six payload bytes and
 // the checksum.
@@ -113,18 +110,22 @@ struct RegisterValue {
 // view into that buffer.
 // Returns how many leading bytes were consumed, junk and resyncs included; the
 // caller keeps the rest for the next notification.
-template<typename F> size_t extract_frames(std::span<const uint8_t> buf, F &&fn) {
+template <std::invocable<std::span<const uint8_t>> F>
+size_t extract_frames(std::span<const uint8_t> buf, F &&fn) {
   size_t pos = 0;
   while (true) {
     // Skip anything before a header: a truncated or corrupt frame must not
     // stall every frame behind it.
-    while (pos + 1 < buf.size() && !(buf[pos] == 0x55 && buf[pos + 1] == 0xAA)) pos++;
-    if (buf.size() - pos < 3) return pos;
+    while (pos + 1 < buf.size() && (buf[pos] != 0x55 || buf[pos + 1] != 0xAA))
+      pos++;
+    if (buf.size() - pos < 3)
+      return pos;
 
-    size_t total = static_cast<size_t>(buf[pos + 2]) + 6;
-    if (buf.size() - pos < total) return pos;
+    const size_t total = static_cast<size_t>(buf[pos + 2]) + 6;
+    if (buf.size() - pos < total)
+      return pos;
 
-    std::span<const uint8_t> frame = buf.subspan(pos, total);
+    const std::span<const uint8_t> frame = buf.subspan(pos, total);
     if (checksum_ok(frame)) {
       fn(frame);
       pos += total;
@@ -137,15 +138,18 @@ template<typename F> size_t extract_frames(std::span<const uint8_t> buf, F &&fn)
 
 // A reply carries little-endian 16-bit registers numbered upward from the
 // frame's register byte, handed over one at a time.
-template<typename F> void decode_registers(std::span<const uint8_t> frame, F &&fn) {
-  if (frame.size() < 8) return;
-  uint8_t base = frame[5];
-  size_t payload = frame.size() - 8;
+template <std::invocable<RegisterValue> F>
+void decode_registers(std::span<const uint8_t> frame, F &&fn) {
+  if (frame.size() < 8)
+    return;
+  const uint8_t base = frame[5];
+  const size_t payload = frame.size() - 8;
   for (size_t i = 0; i + 1 < payload; i += 2) {
     // A reply longer than the map would wrap the register number.
-    if (static_cast<size_t>(base) + i / 2 > 0xFF) break;
-    fn(RegisterValue{static_cast<uint8_t>(base + i / 2),
-                     static_cast<uint16_t>(frame[6 + i] | (frame[6 + i + 1] << 8))});
+    if (static_cast<size_t>(base) + (i / 2) > 0xFF)
+      break;
+    fn(RegisterValue{.reg = static_cast<uint8_t>(base + (i / 2)),
+                     .value = static_cast<uint16_t>(frame[6 + i] | (frame[6 + i + 1] << 8))});
   }
 }
 
@@ -155,5 +159,4 @@ uint8_t byte_diversity_pct(std::span<const uint8_t> buf);
 
 std::string hex_dump(const uint8_t *data, size_t len);
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot

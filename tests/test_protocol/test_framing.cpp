@@ -23,15 +23,12 @@ static DiscoveredChar dc(const char *s, const char *c) {
 // before that changed.
 static std::vector<std::vector<uint8_t>> collect_frames(std::vector<uint8_t> &buf) {
   std::vector<std::vector<uint8_t>> out;
-  size_t consumed = extract_frames(buf, [&out](std::span<const uint8_t> f) {
-    out.emplace_back(f.begin(), f.end());
-  });
+  size_t consumed = extract_frames(buf, [&out](std::span<const uint8_t> f) { out.emplace_back(f.begin(), f.end()); });
   buf.erase(buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(consumed));
   return out;
 }
 
-static std::vector<uint8_t> make_request(uint8_t dest, uint8_t cmd, uint8_t reg,
-                                         std::vector<uint8_t> payload) {
+static std::vector<uint8_t> make_request(uint8_t dest, uint8_t cmd, uint8_t reg, std::vector<uint8_t> payload) {
   std::array<uint8_t, MAX_FRAME> buf{};
   size_t n = build_request(buf, dest, cmd, reg, payload);
   return std::vector<uint8_t>(buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(n));
@@ -50,10 +47,11 @@ static std::vector<RegisterValue> collect_registers(std::span<const uint8_t> fra
 }
 
 void test_profile_ids_are_unique_and_resolve() {
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
-    TEST_ASSERT_EQUAL_PTR(&PROFILE_TABLE[i], profile_by_id(PROFILE_TABLE[i].id));
-    for (size_t j = i + 1; j < PROFILE_TABLE_LEN; j++) {
-      TEST_ASSERT_FALSE(PROFILE_TABLE[i].id == PROFILE_TABLE[j].id);
+  const std::span<const TransportProfile> table = profile_table();
+  for (size_t i = 0; i < table.size(); i++) {
+    TEST_ASSERT_EQUAL_PTR(&table[i], profile_by_id(table[i].id));
+    for (size_t j = i + 1; j < table.size(); j++) {
+      TEST_ASSERT_FALSE(table[i].id == table[j].id);
     }
   }
   TEST_ASSERT_NULL(profile_by_id(Profile::UNKNOWN));
@@ -68,21 +66,21 @@ struct ExpectedProfile {
   const char *notify;
 };
 static const ExpectedProfile EXPECTED[] = {
-    {Profile::NUS, "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-     "6e400002-b5a3-f393-e0a9-e50e24dcca9e", "6e400003-b5a3-f393-e0a9-e50e24dcca9e"},
-    {Profile::AE00, "0000ae00-0000-1000-8000-00805f9b34fb",
-     "0000ae01-0000-1000-8000-00805f9b34fb", "0000ae02-0000-1000-8000-00805f9b34fb"},
-    {Profile::FFE0, "0000ffe0-0000-1000-8000-00805f9b34fb",
-     "0000fff3-0000-1000-8000-00805f9b34fb", "0000fff4-0000-1000-8000-00805f9b34fb"},
-    {Profile::FFF0_F3F7, "0000fff0-0000-1000-8000-00805f9b34fb",
-     "0000fff3-0000-1000-8000-00805f9b34fb", "0000fff7-0000-1000-8000-00805f9b34fb"},
-    {Profile::FFF0_F2F1, "0000fff0-0000-1000-8000-00805f9b34fb",
-     "0000fff2-0000-1000-8000-00805f9b34fb", "0000fff1-0000-1000-8000-00805f9b34fb"},
+    {Profile::NUS, "6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+     "6e400003-b5a3-f393-e0a9-e50e24dcca9e"},
+    {Profile::AE00, "0000ae00-0000-1000-8000-00805f9b34fb", "0000ae01-0000-1000-8000-00805f9b34fb",
+     "0000ae02-0000-1000-8000-00805f9b34fb"},
+    {Profile::FFE0, "0000ffe0-0000-1000-8000-00805f9b34fb", "0000fff3-0000-1000-8000-00805f9b34fb",
+     "0000fff4-0000-1000-8000-00805f9b34fb"},
+    {Profile::FFF0_F3F7, "0000fff0-0000-1000-8000-00805f9b34fb", "0000fff3-0000-1000-8000-00805f9b34fb",
+     "0000fff7-0000-1000-8000-00805f9b34fb"},
+    {Profile::FFF0_F2F1, "0000fff0-0000-1000-8000-00805f9b34fb", "0000fff2-0000-1000-8000-00805f9b34fb",
+     "0000fff1-0000-1000-8000-00805f9b34fb"},
 };
 
 void test_profile_table_matches_the_uuids_it_should_carry() {
-  TEST_ASSERT_EQUAL_UINT32(sizeof(EXPECTED) / sizeof(EXPECTED[0]), PROFILE_TABLE_LEN);
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
+  TEST_ASSERT_EQUAL_UINT32(sizeof(EXPECTED) / sizeof(EXPECTED[0]), profile_table().size());
+  for (size_t i = 0; i < profile_table().size(); i++) {
     const TransportProfile *p = profile_by_id(EXPECTED[i].id);
     TEST_ASSERT_NOT_NULL(p);
     TEST_ASSERT_EQUAL_STRING(EXPECTED[i].service, p->service_uuid);
@@ -92,7 +90,7 @@ void test_profile_table_matches_the_uuids_it_should_carry() {
 }
 
 void test_every_profile_detects_from_its_own_pair() {
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
+  for (size_t i = 0; i < profile_table().size(); i++) {
     const ExpectedProfile &e = EXPECTED[i];
     std::vector<DiscoveredChar> found = {dc(e.service, e.write), dc(e.service, e.notify)};
     TEST_ASSERT_TRUE(detect_profile(found) == e.id);
@@ -170,10 +168,8 @@ void test_build_request_bulk_read() {
 void test_xor_covers_the_whole_frame() {
   // Header and checksum are xored too, so a frame sent in the clear is dropped
   // before the controller reads the header.
-  std::vector<uint8_t> plain = {0x55, 0xAA, 0x06, 0xF0, 0xF1, 0xF2,
-                                0xA1, 0xA2, 0xA3, 0xA4, 0x9C, 0xFA};
-  const uint8_t wire[] = {0x61, 0x9E, 0x32, 0xC4, 0xC5, 0xC6,
-                          0x95, 0x96, 0x97, 0x90, 0xA8, 0xCE};
+  std::vector<uint8_t> plain = {0x55, 0xAA, 0x06, 0xF0, 0xF1, 0xF2, 0xA1, 0xA2, 0xA3, 0xA4, 0x9C, 0xFA};
+  const uint8_t wire[] = {0x61, 0x9E, 0x32, 0xC4, 0xC5, 0xC6, 0x95, 0x96, 0x97, 0x90, 0xA8, 0xCE};
   TEST_ASSERT_TRUE(checksum_ok(plain));
   apply_xor(plain, XOR_KEY_VARIANT3);
   TEST_ASSERT_EQUAL_UINT8_ARRAY(wire, plain.data(), sizeof(wire));
@@ -322,7 +318,8 @@ void test_decode_registers_edges() {
 
   // Fourth register from 0xFD would be 0x100, and must not wrap to 0x00.
   std::vector<uint8_t> high = {0x55, 0xAA, 0x0A, 0x23, 0x01, 0xFD};
-  for (int i = 0; i < 8; i++) high.push_back(0x11);
+  for (int i = 0; i < 8; i++)
+    high.push_back(0x11);
   high.push_back(0x00);
   high.push_back(0x00);
   auto regs = collect_registers(high);
@@ -330,8 +327,7 @@ void test_decode_registers_edges() {
   TEST_ASSERT_EQUAL_UINT8(0xFF, regs[2].reg);
 
   // An odd trailing byte is not half a register.
-  std::vector<uint8_t> odd = {0x55, 0xAA, 0x07, 0x23, 0x01, 0x14, 0x01, 0x00,
-                              0x02, 0x00, 0x99, 0x00, 0x00};
+  std::vector<uint8_t> odd = {0x55, 0xAA, 0x07, 0x23, 0x01, 0x14, 0x01, 0x00, 0x02, 0x00, 0x99, 0x00, 0x00};
   auto two = collect_registers(odd);
   TEST_ASSERT_EQUAL_UINT32(2, two.size());
   TEST_ASSERT_EQUAL_UINT16(2, two[1].value);

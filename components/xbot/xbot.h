@@ -1,7 +1,5 @@
 #pragma once
 
-#include "esphome/core/component.h"
-
 #include <array>
 #include <cstring>
 #include <functional>
@@ -9,22 +7,23 @@
 #include <string>
 #include <vector>
 
+#include "esphome/core/component.h"
+
 #ifdef USE_ESP32
-#include "esphome/components/ble_client/ble_client.h"
-#include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
-#include "esphome/components/binary_sensor/binary_sensor.h"
-#include "esphome/components/sensor/sensor.h"
-#include "esphome/components/text_sensor/text_sensor.h"
 #include <esp_gattc_api.h>
 
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/ble_client/ble_client.h"
+#include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 #include "xbot_discovery.h"
 #include "xbot_persist.h"
 #include "xbot_protocol.h"
 #include "xbot_receive.h"
 #include "xbot_triage.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -61,7 +60,7 @@ class XbotHub : public ble_client::BLEClientNode, public PollingComponent {
   // match what its name implies; the triage log says which key did parse.
   void set_key_override(int16_t k) { this->key_override_ = k; }
   void add_poll_entry(uint8_t dest, uint8_t cmd, uint8_t reg, uint8_t count) {
-    this->poll_table_.push_back(PollEntry{dest, cmd, reg, count});
+    this->poll_table_.push_back(PollEntry{.dest = dest, .cmd = cmd, .reg = reg, .count = count});
   }
   // The vehicle takes one connection at a time.
   void set_ble_user_enabled(bool en);
@@ -69,9 +68,7 @@ class XbotHub : public ble_client::BLEClientNode, public PollingComponent {
   void set_ble_switch_present() { this->ble_switch_present_ = true; }
   // The switch is not the only thing that moves the flag, so whatever displays
   // it has to hear about the changes it did not make.
-  void add_ble_state_callback(std::function<void(bool)> &&cb) {
-    this->ble_state_cbs_.push_back(std::move(cb));
-  }
+  void add_ble_state_callback(std::function<void(bool)> &&cb) { this->ble_state_cbs_.push_back(std::move(cb)); }
 
   // False when the link is down. Only ever called from an entity.
   bool write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t value);
@@ -87,23 +84,19 @@ class XbotHub : public ble_client::BLEClientNode, public PollingComponent {
 
   // accepts_sentinel says 0xFFFF is a reading, which is what it means for a
   // register the entity reads as two's complement.
-  void watch_register(uint8_t src, uint8_t reg, std::function<void(uint16_t)> &&cb,
-                      bool accepts_sentinel = false) {
-    this->reg_watchers_.push_back(RegWatcher{src, reg, std::move(cb), accepts_sentinel});
+  void watch_register(uint8_t src, uint8_t reg, std::function<void(uint16_t)> &&cb, bool accepts_sentinel = false) {
+    this->reg_watchers_.push_back(
+        RegWatcher{.src = src, .reg = reg, .cb = std::move(cb), .accepts_sentinel = accepts_sentinel});
   }
 
   // Runs at the start of every connection cycle, for state that is only valid
   // while a link is up.
-  void register_cycle_reset(std::function<void()> &&cb) {
-    this->cycle_resets_.push_back(std::move(cb));
-  }
+  void register_cycle_reset(std::function<void()> &&cb) { this->cycle_resets_.push_back(std::move(cb)); }
 
   // The callback returns true when it staged something for flash. It runs once
   // the vehicle has been out of reach long enough for its last value to be
   // final, so a reachable vehicle costs no flash writes.
-  void register_persist(std::function<bool()> &&flush) {
-    this->persist_flush_.push_back(std::move(flush));
-  }
+  void register_persist(std::function<bool()> &&flush) { this->persist_flush_.push_back(std::move(flush)); }
 
   // Scoped to this vehicle, so several of them on one node keep separate state.
   uint32_t persist_key(uint8_t src, uint8_t reg);
@@ -205,7 +198,6 @@ class XbotHub : public ble_client::BLEClientNode, public PollingComponent {
   binary_sensor::BinarySensor *connected_sensor_{nullptr};
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32
