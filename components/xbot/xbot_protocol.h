@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -30,8 +31,7 @@ struct TransportProfile {
 
 // FFE0 deliberately pairs an ffe0 service with fff-family characteristics. A
 // vehicle exposing ffe0+ffe1 is a sixth case, unmapped.
-extern const TransportProfile PROFILE_TABLE[];
-extern const size_t PROFILE_TABLE_LEN;
+std::span<const TransportProfile> profile_table();
 
 const TransportProfile *profile_by_id(Profile id);
 
@@ -110,7 +110,7 @@ struct RegisterValue {
 // view into that buffer.
 // Returns how many leading bytes were consumed, junk and resyncs included; the
 // caller keeps the rest for the next notification.
-template <typename F>
+template <std::invocable<std::span<const uint8_t>> F>
 size_t extract_frames(std::span<const uint8_t> buf, F &&fn) {
   size_t pos = 0;
   while (true) {
@@ -138,7 +138,7 @@ size_t extract_frames(std::span<const uint8_t> buf, F &&fn) {
 
 // A reply carries little-endian 16-bit registers numbered upward from the
 // frame's register byte, handed over one at a time.
-template <typename F>
+template <std::invocable<RegisterValue> F>
 void decode_registers(std::span<const uint8_t> frame, F &&fn) {
   if (frame.size() < 8)
     return;

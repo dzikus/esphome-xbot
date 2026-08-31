@@ -47,10 +47,11 @@ static std::vector<RegisterValue> collect_registers(std::span<const uint8_t> fra
 }
 
 void test_profile_ids_are_unique_and_resolve() {
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
-    TEST_ASSERT_EQUAL_PTR(&PROFILE_TABLE[i], profile_by_id(PROFILE_TABLE[i].id));
-    for (size_t j = i + 1; j < PROFILE_TABLE_LEN; j++) {
-      TEST_ASSERT_FALSE(PROFILE_TABLE[i].id == PROFILE_TABLE[j].id);
+  const std::span<const TransportProfile> table = profile_table();
+  for (size_t i = 0; i < table.size(); i++) {
+    TEST_ASSERT_EQUAL_PTR(&table[i], profile_by_id(table[i].id));
+    for (size_t j = i + 1; j < table.size(); j++) {
+      TEST_ASSERT_FALSE(table[i].id == table[j].id);
     }
   }
   TEST_ASSERT_NULL(profile_by_id(Profile::UNKNOWN));
@@ -78,8 +79,8 @@ static const ExpectedProfile EXPECTED[] = {
 };
 
 void test_profile_table_matches_the_uuids_it_should_carry() {
-  TEST_ASSERT_EQUAL_UINT32(sizeof(EXPECTED) / sizeof(EXPECTED[0]), PROFILE_TABLE_LEN);
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
+  TEST_ASSERT_EQUAL_UINT32(sizeof(EXPECTED) / sizeof(EXPECTED[0]), profile_table().size());
+  for (size_t i = 0; i < profile_table().size(); i++) {
     const TransportProfile *p = profile_by_id(EXPECTED[i].id);
     TEST_ASSERT_NOT_NULL(p);
     TEST_ASSERT_EQUAL_STRING(EXPECTED[i].service, p->service_uuid);
@@ -89,7 +90,7 @@ void test_profile_table_matches_the_uuids_it_should_carry() {
 }
 
 void test_every_profile_detects_from_its_own_pair() {
-  for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
+  for (size_t i = 0; i < profile_table().size(); i++) {
     const ExpectedProfile &e = EXPECTED[i];
     std::vector<DiscoveredChar> found = {dc(e.service, e.write), dc(e.service, e.notify)};
     TEST_ASSERT_TRUE(detect_profile(found) == e.id);

@@ -2,6 +2,7 @@
 
 #include "xbot_discovery.h"
 
+#include <array>
 #include <cinttypes>
 #include <cstdio>
 #include <string>
@@ -16,19 +17,19 @@ static const uint16_t CCCD_UUID16 = 0x2902;
 static const uint16_t DEVICE_NAME_UUID16 = 0x2A00;
 
 static std::string uuid_str(const esp_bt_uuid_t &u) {
-  char buf[40];
+  std::array<char, 40> buf{};
   if (u.len == ESP_UUID_LEN_16) {
-    snprintf(buf, sizeof(buf), "0000%04x-0000-1000-8000-00805f9b34fb", u.uuid.uuid16);
-    return buf;
+    snprintf(buf.data(), buf.size(), "0000%04x-0000-1000-8000-00805f9b34fb", u.uuid.uuid16);
+    return buf.data();
   }
   if (u.len == ESP_UUID_LEN_32) {
-    snprintf(buf, sizeof(buf), "%08" PRIx32 "-0000-1000-8000-00805f9b34fb", u.uuid.uuid32);
-    return buf;
+    snprintf(buf.data(), buf.size(), "%08" PRIx32 "-0000-1000-8000-00805f9b34fb", u.uuid.uuid32);
+    return buf.data();
   }
   const uint8_t *b = u.uuid.uuid128;
-  snprintf(buf, sizeof(buf), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", b[15], b[14],
+  snprintf(buf.data(), buf.size(), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", b[15], b[14],
            b[13], b[12], b[11], b[10], b[9], b[8], b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0]);
-  return buf;
+  return buf.data();
 }
 
 GattWalk walk_gatt(esp_gatt_if_t gattc_if, uint16_t conn_id) {

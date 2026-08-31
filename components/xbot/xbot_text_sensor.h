@@ -2,6 +2,7 @@
 
 #ifdef USE_ESP32
 
+#include <array>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -39,10 +40,10 @@ class XbotRegisterTextSensor : public text_sensor::TextSensor, public Parented<X
         return;
     }
     std::string out;
-    char buf[8];
+    std::array<char, 8> buf{};
     for (uint16_t v : this->values_) {
-      snprintf(buf, sizeof(buf), "%04X", v);
-      out += buf;
+      snprintf(buf.data(), buf.size(), "%04X", v);
+      out += buf.data();
     }
     if (!this->has_state() || this->state != out)
       this->publish_state(out);

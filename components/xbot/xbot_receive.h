@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -39,7 +40,7 @@ class RxAccumulator {
 
   // Hands every complete frame to fn as a view into this buffer, then keeps
   // only the tail that could not be parsed yet.
-  template <typename F>
+  template <std::invocable<std::span<const uint8_t>> F>
   void drain(F &&fn) {
     const size_t consumed = extract_frames(std::span<const uint8_t>(this->buf_.data(), this->len_), fn);
     if (consumed == 0)

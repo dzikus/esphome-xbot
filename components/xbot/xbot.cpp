@@ -3,6 +3,7 @@
 #ifdef USE_ESP32
 
 #include <algorithm>
+#include <bit>
 #include <cinttypes>
 #include <cstdio>
 
@@ -353,8 +354,7 @@ void XbotHub::handle_search_complete_() {
   if (found.empty()) {
     // No attribute table to walk, so ask for each profile's pair by UUID; the
     // per-characteristic lookup still works even when the dump does not.
-    for (size_t i = 0; i < PROFILE_TABLE_LEN; i++) {
-      const TransportProfile &cand = PROFILE_TABLE[i];
+    for (const TransportProfile &cand : profile_table()) {
       auto svc = espbt::ESPBTUUID::from_raw(cand.service_uuid);
       if (this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.write_uuid)) &&
           this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.notify_uuid))) {
@@ -505,10 +505,10 @@ void XbotHub::write_cccd_() {
     this->start_probes_();
     return;
   }
-  uint8_t value[2] = {0x01, 0x00};
+  std::array<uint8_t, 2> value{0x01, 0x00};
   const esp_err_t err = esp_ble_gattc_write_char_descr(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()),
-                                                       this->parent()->get_conn_id(), this->cccd_handle_, sizeof(value),
-                                                       value, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+                                                       this->parent()->get_conn_id(), this->cccd_handle_, value.size(),
+                                                       value.data(), ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "CCCD write call failed, err=%d", err);
     this->start_probes_();
@@ -573,7 +573,7 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
 
   const PollEntry &pr = this->poll_table_[index];
   std::array<uint8_t, MAX_FRAME> buf{};
-  const uint8_t payload[] = {pr.count};
+  const std::array<uint8_t, 1> payload{pr.count};
   const size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
   const std::span<uint8_t> frame(buf.data(), len);
   apply_xor(frame, this->xor_key_);
@@ -626,12 +626,12 @@ void XbotHub::run_verify_() {
     return;
   }
 
-  const size_t index = static_cast<size_t>(__builtin_ctz(this->verify_mask_));
+  const size_t index = static_cast<size_t>(std::countr_zero(this->verify_mask_));
   this->verify_mask_ &= ~(1u << index);
   const PollEntry &pr = this->poll_table_[index];
 
   std::array<uint8_t, MAX_FRAME> buf{};
-  const uint8_t payload[] = {pr.count};
+  const std::array<uint8_t, 1> payload{pr.count};
   const size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
   const std::span<uint8_t> frame(buf.data(), len);
   apply_xor(frame, this->xor_key_);

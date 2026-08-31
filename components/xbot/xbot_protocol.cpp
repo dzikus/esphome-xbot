@@ -1,11 +1,12 @@
 #include "xbot_protocol.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 
 namespace esphome::xbot {
 
-const TransportProfile PROFILE_TABLE[] = {
+constexpr auto PROFILE_TABLE = std::to_array<TransportProfile>({
     {.id = Profile::NUS,
      .name = "nus",
      .service_uuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
@@ -31,9 +32,11 @@ const TransportProfile PROFILE_TABLE[] = {
      .service_uuid = "0000fff0-0000-1000-8000-00805f9b34fb",
      .write_uuid = "0000fff2-0000-1000-8000-00805f9b34fb",
      .notify_uuid = "0000fff1-0000-1000-8000-00805f9b34fb"},
-};
+});
 
-const size_t PROFILE_TABLE_LEN = sizeof(PROFILE_TABLE) / sizeof(PROFILE_TABLE[0]);
+std::span<const TransportProfile> profile_table() {
+  return PROFILE_TABLE;
+}
 
 const TransportProfile *profile_by_id(Profile id) {
   for (const TransportProfile &p : PROFILE_TABLE) {
@@ -78,7 +81,7 @@ constexpr ProtocolVariant V3 = {.id = 3, .xor_key = 0x34, .read_dest = 0x20, .re
 constexpr ProtocolVariant V3_PLAIN = {.id = 3, .xor_key = 0x00, .read_dest = 0x20, .read_cmd = 0x61};
 
 // Everything before the name-shape rule below.
-const NamePattern EARLY_NAMES[] = {
+constexpr auto EARLY_NAMES = std::to_array<NamePattern>({
     {.needle = "X0Robot", .result = V3_PLAIN},
     {.needle = "PRO-II", .result = V3},
     {.needle = "TK2-S", .result = V3},
@@ -102,22 +105,22 @@ const NamePattern EARLY_NAMES[] = {
     {.needle = "Ninebot", .result = {.id = 1, .xor_key = 0x00, .read_dest = 0x0A, .read_cmd = 0x01}},
     {.needle = "miniPLUS_", .result = {.id = 1, .xor_key = 0x00, .read_dest = 0x04, .read_cmd = 0x01}},
     {.needle = "M5Robot", .result = {.id = 1, .xor_key = 0xD8, .read_dest = 0x0A, .read_cmd = 0x01}},
-};
+});
 
 // Everything after it.
-const NamePattern LATE_NAMES[] = {
+constexpr auto LATE_NAMES = std::to_array<NamePattern>({
     {.needle = "A6Robot", .result = {.id = 2, .xor_key = 0xD8, .read_dest = 0x0A, .read_cmd = 0x01}},
     {.needle = "M0", .result = V3},
     {.needle = "SFSO", .result = V3},
     {.needle = "MIScooter", .result = V3_PLAIN},
     {.needle = "W1", .result = {.id = 5, .xor_key = 0x37, .read_dest = 0x0A, .read_cmd = 0x01}},
     {.needle = "Plus", .result = {.id = 1, .xor_key = 0x39, .read_dest = 0x04, .read_cmd = 0x01}},
-};
+});
 
-const NamePattern *match(std::string_view name, const NamePattern *table, size_t len) {
-  for (size_t i = 0; i < len; i++) {
-    if (name.find(table[i].needle) != std::string_view::npos)
-      return &table[i];
+const NamePattern *match(std::string_view name, std::span<const NamePattern> table) {
+  for (const NamePattern &p : table) {
+    if (name.find(p.needle) != std::string_view::npos)
+      return &p;
   }
   return nullptr;
 }
@@ -125,7 +128,7 @@ const NamePattern *match(std::string_view name, const NamePattern *table, size_t
 }  // namespace
 
 ProtocolVariant variant_for_name(std::string_view name) {
-  const NamePattern *hit = match(name, EARLY_NAMES, sizeof(EARLY_NAMES) / sizeof(EARLY_NAMES[0]));
+  const NamePattern *hit = match(name, EARLY_NAMES);
   if (hit != nullptr)
     return hit->result;
 
@@ -141,7 +144,7 @@ ProtocolVariant variant_for_name(std::string_view name) {
     return V3;
   }
 
-  hit = match(name, LATE_NAMES, sizeof(LATE_NAMES) / sizeof(LATE_NAMES[0]));
+  hit = match(name, LATE_NAMES);
   if (hit != nullptr)
     return hit->result;
 
@@ -170,7 +173,7 @@ size_t build_request(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t 
 
 size_t build_write(std::span<uint8_t> out, uint8_t dest, uint8_t cmd, uint8_t reg, int16_t value) {
   const uint16_t raw = static_cast<uint16_t>(value);
-  const uint8_t payload[] = {static_cast<uint8_t>(raw & 0xFF), static_cast<uint8_t>(raw >> 8)};
+  const std::array<uint8_t, 2> payload{static_cast<uint8_t>(raw & 0xFF), static_cast<uint8_t>(raw >> 8)};
   return build_request(out, dest, cmd, reg, payload);
 }
 
@@ -206,7 +209,7 @@ Dialect identify_dialect(std::span<const uint8_t> buf) {
 uint8_t byte_diversity_pct(std::span<const uint8_t> buf) {
   if (buf.empty())
     return 0;
-  bool seen[256] = {false};
+  std::array<bool, 256> seen{};
   size_t distinct = 0;
   for (const uint8_t b : buf) {
     if (!seen[b]) {
