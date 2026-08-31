@@ -71,7 +71,9 @@ jobs:
           # The wrapper exits on SIGHUP and reports ERRORED on a green run, so
           # its status is not the answer. The binary it built is.
           pio test -d tests -e native < /dev/null || echo "pio wrapper rc=$?, binary decides"
-          tests/.pio/build/native/program
+          tests/.pio/build/native/program | tee test-output.txt
+          # rc=0 without the closing line means the binary stopped early.
+          grep -qE '^[1-9][0-9]* Tests 0 Failures 0 Ignored' test-output.txt
       # esphome demotes -Werror to warnings on the idf build, so a conversion
       # this component introduces would never stop a firmware compile. The
       # signed-register bug that published -2 degC as 6551.6 was one of these.
