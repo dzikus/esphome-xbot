@@ -144,6 +144,8 @@ jobs:
           restore-keys: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-
       - name: Install ESPHome
         run: pip install "esphome==${ESPHOME_VERSION}"
+      - name: Run codegen unit tests
+        run: python -m unittest discover -s tests/python -v
       - name: Compile every board, failing on any warning from the component
         run: |
           set -euo pipefail
@@ -184,7 +186,7 @@ jobs:
           ota_password: ci-ota-password
           xbot_mac: AA:BB:CC:DD:EE:FF
           EOF
-      - name: Validate example and CI configs
+      - name: Validate example, CI and IntelliSense configs
         run: |
           set -euo pipefail
           esphome config example.yaml
