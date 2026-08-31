@@ -3,39 +3,25 @@ on:
   push:
     tags: ["v*.*.*"]
 permissions:
-  contents: write
-env:
-  ESPHOME_VERSION: "2026.8.1"
+  contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  release:
-    name: test gate and publish release
+  gates:
+    name: test gates
+    uses: ./.github/workflows/test.yml
+  publish:
+    name: publish release
+    needs: gates
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      # persist-credentials: false keeps the write-scoped token out of .git so the
-      # third-party toolchains below (esphome/pio deps) cannot reach it. gh below
-      # authenticates via the GH_TOKEN env instead.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: "3.14"
-          cache: pip
-      - name: Install ESPHome and PlatformIO
-        run: pip install "esphome==${{ env.ESPHOME_VERSION }}" "platformio==6.1.19"
-      - name: Run protocol unit tests (release gate)
-        run: |
-          set -euo pipefail
-          # The wrapper exits on SIGHUP and reports ERRORED on a green run, so
-          # its status is not the answer. The binary it built is.
-          pio test -d tests -e native < /dev/null || echo "pio wrapper rc=$?, binary decides"
-          tests/.pio/build/native/program
-      - name: Compile full component (release gate)
-        run: bash tests/check_esp32_warnings.sh .github/ci-build.yaml esp32dev
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

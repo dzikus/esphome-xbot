@@ -2,17 +2,18 @@ name: tests
 on:
   push:
     branches: [main]
-    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
+    paths: ["components/xbot/**", "tests/**", "scripts/**", ".github/**", ".devcontainer/requirements.txt", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
   pull_request:
-    paths: ["components/xbot/**", "tests/**", ".github/**", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
+    paths: ["components/xbot/**", "tests/**", "scripts/**", ".github/**", ".devcontainer/requirements.txt", "example.yaml", ".intellisense.yaml", "pyproject.toml", ".pre-commit-config.yaml", ".clang-format", ".clang-tidy"]
+  workflow_call:
 permissions:
   contents: read
 env:
   ESPHOME_VERSION: "2026.8.1"
   ESPHOME_FLOOR: "2026.2.0"
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   lint:
     name: ruff + pre-commit
@@ -33,7 +34,10 @@ jobs:
           key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
           restore-keys: ${{ runner.os }}-pre-commit-
       - name: Install pre-commit
-        run: pip install "pre-commit==4.6.0"
+        run: |
+          set -euo pipefail
+          pin="$(grep -E '^pre-commit==' .devcontainer/requirements.txt)"
+          pip install "${pin}"
       - name: Run pre-commit (ruff lint + format + hygiene)
         run: pre-commit run --all-files --show-diff-on-failure
   unit-tests:
@@ -56,7 +60,10 @@ jobs:
           key: ${{ runner.os }}-pio-${{ hashFiles('tests/platformio.ini') }}
           restore-keys: ${{ runner.os }}-pio-
       - name: Install PlatformIO
-        run: pip install "platformio==6.1.19"
+        run: |
+          set -euo pipefail
+          pin="$(grep -E '^platformio==' .devcontainer/requirements.txt)"
+          pip install "${pin}"
       - name: Run protocol unit tests
         run: |
           set -euo pipefail
@@ -100,7 +107,10 @@ jobs:
             ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-riscv
             ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-
       - name: Install ESPHome and clang-tidy
-        run: pip install "esphome==${{ env.ESPHOME_VERSION }}" "clang-tidy==22.1.8"
+        run: |
+          set -euo pipefail
+          pin="$(grep -E '^clang-tidy==' .devcontainer/requirements.txt)"
+          pip install "esphome==${ESPHOME_VERSION}" "${pin}"
       - name: Run clang-tidy
         run: CI_CONFIG=.github/ci-build.yaml bash tests/run_clang_tidy.sh
   esphome-build:
@@ -133,7 +143,7 @@ jobs:
           key: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-${{ matrix.arch }}
           restore-keys: ${{ runner.os }}-idf-${{ env.ESPHOME_VERSION }}-
       - name: Install ESPHome
-        run: pip install "esphome==${{ env.ESPHOME_VERSION }}"
+        run: pip install "esphome==${ESPHOME_VERSION}"
       - name: Compile every board, failing on any warning from the component
         run: |
           set -euo pipefail
@@ -164,7 +174,7 @@ jobs:
       # Pin to the declared floor so min_version is actually exercised, and
       # validate the published example (which the compile job never touches).
       - name: Install ESPHome (component floor)
-        run: pip install "esphome==${{ env.ESPHOME_FLOOR }}"
+        run: pip install "esphome==${ESPHOME_FLOOR}"
       - name: Provide dummy secrets for the example
         run: |
           cat > secrets.yaml <<'EOF'

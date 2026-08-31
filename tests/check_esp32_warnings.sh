@@ -25,7 +25,8 @@ find "${config_dir}/.esphome/build" -path "*/components/xbot/*" -name "*.obj" -d
 lines="$(mktemp -t esp32-warnings-lines-XXXXXX.log)"
 tr '\r' '\n' < "${log}" > "${lines}"
 
-sources="$(ls "$(dirname "${BASH_SOURCE[0]}")/../components/xbot"/*.cpp | wc -l)"
+component_sources=("$(dirname "${BASH_SOURCE[0]}")/../components/xbot"/*.cpp)
+sources="${#component_sources[@]}"
 built="$(grep -oE "Building CXX object [^ ]*components/xbot/[a-z_]+\.cpp" "${lines}" | sort -u | wc -l)"
 if [[ "${built}" -ne "${sources}" ]]; then
   echo "${built} of ${sources} component translation units were compiled;" >&2
