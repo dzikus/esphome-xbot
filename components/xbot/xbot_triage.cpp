@@ -3,11 +3,9 @@
 #include <vector>
 
 #include "esphome/core/log.h"
-
 #include "xbot_protocol.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 static const char *const TAG = "xbot";
 
@@ -23,13 +21,13 @@ static const char *dialect_str(Dialect d) {
 }
 
 void log_unparsed(std::span<const uint8_t> raw, uint8_t key) {
-  Dialect plain = identify_dialect(raw);
+  const Dialect plain = identify_dialect(raw);
 
   std::vector<uint8_t> keyed(raw.begin(), raw.end());
   apply_xor(keyed, key);
-  Dialect unkeyed = identify_dialect(keyed);
+  const Dialect unkeyed = identify_dialect(keyed);
 
-  uint8_t diversity = byte_diversity_pct(raw);
+  const uint8_t diversity = byte_diversity_pct(raw);
   const char *verdict;
   if (unkeyed != Dialect::UNKNOWN) {
     verdict = "framing found under the current key, wait for a full frame";
@@ -41,11 +39,9 @@ void log_unparsed(std::span<const uint8_t> raw, uint8_t key) {
     verdict = "no framing either way, likely a different variant or command set";
   }
 
-  ESP_LOGW(TAG, "nothing parses: raw=%s xored=%s diversity=%u%% -> %s", dialect_str(plain),
-           dialect_str(unkeyed), diversity, verdict);
-  ESP_LOGW(TAG, "first bytes: %s",
-           hex_dump(raw.data(), raw.size() > 16 ? 16 : raw.size()).c_str());
+  ESP_LOGW(TAG, "nothing parses: raw=%s xored=%s diversity=%u%% -> %s", dialect_str(plain), dialect_str(unkeyed),
+           diversity, verdict);
+  ESP_LOGW(TAG, "first bytes: %s", hex_dump(raw.data(), raw.size() > 16 ? 16 : raw.size()).c_str());
 }
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot

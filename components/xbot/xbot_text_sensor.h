@@ -2,22 +2,18 @@
 
 #ifdef USE_ESP32
 
-#include "esphome/components/text_sensor/text_sensor.h"
-#include "esphome/core/component.h"
-
 #include <cstdio>
 #include <string>
 #include <vector>
 
+#include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/core/component.h"
 #include "xbot.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // Several registers rendered as one hex string, in the order they are added.
-class XbotRegisterTextSensor : public text_sensor::TextSensor,
-                               public Parented<XbotHub>,
-                               public Component {
+class XbotRegisterTextSensor : public text_sensor::TextSensor, public Parented<XbotHub>, public Component {
  public:
   void set_src(uint8_t s) { this->src_ = s; }
   void add_register(uint8_t r) {
@@ -39,7 +35,8 @@ class XbotRegisterTextSensor : public text_sensor::TextSensor,
  protected:
   void emit_() {
     for (size_t i = 0; i < this->seen_.size(); i++) {
-      if (!this->seen_[i]) return;
+      if (!this->seen_[i])
+        return;
     }
     std::string out;
     char buf[8];
@@ -47,7 +44,8 @@ class XbotRegisterTextSensor : public text_sensor::TextSensor,
       snprintf(buf, sizeof(buf), "%04X", v);
       out += buf;
     }
-    if (!this->has_state() || this->state != out) this->publish_state(out);
+    if (!this->has_state() || this->state != out)
+      this->publish_state(out);
   }
 
   uint8_t src_{0};
@@ -56,7 +54,6 @@ class XbotRegisterTextSensor : public text_sensor::TextSensor,
   std::vector<bool> seen_;
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

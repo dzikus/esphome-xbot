@@ -5,12 +5,10 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
-
 #include "xbot.h"
 #include "xbot_entity_logic.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // One telemetry register, optionally paired with the next one as a 32-bit
 // value. divisor converts the raw count into the published unit.
@@ -48,7 +46,8 @@ class XbotRegisterSensor : public sensor::Sensor, public Parented<XbotHub>, publ
         [this](uint16_t raw) {
           this->low_ = raw;
           this->low_frame_ = this->parent_->frame_seq();
-          if (!this->wide_) this->emit_(register_to_float(raw, this->signed_));
+          if (!this->wide_)
+            this->emit_(register_to_float(raw, this->signed_));
         },
         this->accepts_sentinel_);
     if (this->wide_) {
@@ -57,7 +56,8 @@ class XbotRegisterSensor : public sensor::Sensor, public Parented<XbotHub>, publ
         // carries the pair, another carries the high word alone; pairing that
         // one with a low word read seconds earlier steps the total by 65536
         // every time the counter crosses a boundary in between.
-        if (this->low_frame_ == 0 || this->low_frame_ != this->parent_->frame_seq()) return;
+        if (this->low_frame_ == 0 || this->low_frame_ != this->parent_->frame_seq())
+          return;
         this->emit_(static_cast<float>(join_words(this->low_, raw)));
       });
     }
@@ -67,12 +67,14 @@ class XbotRegisterSensor : public sensor::Sensor, public Parented<XbotHub>, publ
   void emit_(float raw) {
     float value = this->divisor_ != 0.0f ? raw / this->divisor_ : raw;
     if (this->has_range_ && !bounded(value, this->range_lo_, this->range_hi_).has_value()) {
-      ESP_LOGW(XBOT_TAG, "reg=0x%02X reads %.3f, outside %.3f..%.3f; dropped", this->register_,
-               value, this->range_lo_, this->range_hi_);
+      ESP_LOGW(XBOT_TAG, "reg=0x%02X reads %.3f, outside %.3f..%.3f; dropped", this->register_, value, this->range_lo_,
+               this->range_hi_);
       return;
     }
-    if (this->persist_) this->store_.stage(value);
-    if (!this->has_state() || this->state != value) this->publish_state(value);
+    if (this->persist_)
+      this->store_.stage(value);
+    if (!this->has_state() || this->state != value)
+      this->publish_state(value);
   }
 
   uint8_t src_{0};
@@ -135,16 +137,18 @@ class XbotProductSensor : public sensor::Sensor, public Parented<XbotHub>, publi
     // Both halves have to come out of the same frame. The lower register is
     // dispatched first, so emitting on its watcher alone would multiply this
     // sweep's value by the one the other register held a sweep ago.
-    if (this->frame_a_ == 0 || this->frame_a_ != this->frame_b_) return;
+    if (this->frame_a_ == 0 || this->frame_a_ != this->frame_b_)
+      return;
     // Current runs negative under regeneration, so power does too.
     float product = static_cast<float>(this->a_) * register_to_float(this->b_, this->b_signed_);
     float value = this->divisor_ != 0.0f ? product / this->divisor_ : product;
     if (this->has_range_ && !bounded(value, this->range_lo_, this->range_hi_).has_value()) {
-      ESP_LOGW(XBOT_TAG, "reg=0x%02X x 0x%02X reads %.3f, outside %.3f..%.3f; dropped",
-               this->reg_a_, this->reg_b_, value, this->range_lo_, this->range_hi_);
+      ESP_LOGW(XBOT_TAG, "reg=0x%02X x 0x%02X reads %.3f, outside %.3f..%.3f; dropped", this->reg_a_, this->reg_b_,
+               value, this->range_lo_, this->range_hi_);
       return;
     }
-    if (!this->has_state() || this->state != value) this->publish_state(value);
+    if (!this->has_state() || this->state != value)
+      this->publish_state(value);
   }
 
   uint8_t src_{0};
@@ -162,7 +166,6 @@ class XbotProductSensor : public sensor::Sensor, public Parented<XbotHub>, publi
   float divisor_{1.0f};
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

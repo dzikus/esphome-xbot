@@ -2,19 +2,17 @@
 
 #ifdef USE_ESP32
 
-#include "esphome/components/number/number.h"
-#include "esphome/core/component.h"
-#include "esphome/core/log.h"
-
 #include <cinttypes>
 #include <cmath>
 #include <cstdint>
 
+#include "esphome/components/number/number.h"
+#include "esphome/core/component.h"
+#include "esphome/core/log.h"
 #include "xbot.h"
 #include "xbot_entity_logic.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, public Component {
  public:
@@ -48,7 +46,8 @@ class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, publ
       });
       this->parent_->watch_register(this->src_, this->scale_reg_, [this](uint16_t raw) {
         auto scale = scale_from_factor(raw, this->scale_divisor_);
-        if (!scale.has_value()) return;
+        if (!scale.has_value())
+          return;
         this->scale_ = *scale;
         this->scale_known_ = true;
       });
@@ -62,18 +61,17 @@ class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, publ
         // otherwise leave this entity unknown and silent.
         if (!this->warned_no_scale_) {
           this->warned_no_scale_ = true;
-          ESP_LOGW(XBOT_TAG, "reg=0x%02X ignored: reg=0x%02X has not been reported, so counts "
-                             "cannot be turned into speed",
+          ESP_LOGW(XBOT_TAG,
+                   "reg=0x%02X ignored: reg=0x%02X has not been reported, so counts "
+                   "cannot be turned into speed",
                    this->register_, this->scale_reg_);
         }
         return;
       }
       float step = this->traits.get_step();
-      auto value = readback_value(raw, this->scale_, step, this->traits.get_min_value(),
-                                  this->traits.get_max_value());
+      auto value = readback_value(raw, this->scale_, step, this->traits.get_min_value(), this->traits.get_max_value());
       if (!value.has_value()) {
-        ESP_LOGW(XBOT_TAG,
-                 "reg=0x%02X reads %u counts, outside min_value..max_value; widen them in the yaml",
+        ESP_LOGW(XBOT_TAG, "reg=0x%02X reads %u counts, outside min_value..max_value; widen them in the yaml",
                  this->register_, raw);
         return;
       }
@@ -89,15 +87,13 @@ class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, publ
     // frame. Writing before it lands sends the value unscaled: 35 counts is a
     // 1.5 km/h limit, not 35 km/h.
     if (this->scale_reg_ != 0 && !this->scale_known_) {
-      ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: the vehicle has not reported the scale yet",
-               this->register_);
+      ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: the vehicle has not reported the scale yet", this->register_);
       this->status_momentary_warning("write");
       return;
     }
     auto raw = write_count(value, this->scale_);
     if (!raw.has_value()) {
-      ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: %.2f does not fit the register",
-               this->register_, value);
+      ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: %.2f does not fit the register", this->register_, value);
       this->status_momentary_warning("write");
       return;
     }
@@ -118,7 +114,6 @@ class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, publ
   PersistedValue<float> store_;
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

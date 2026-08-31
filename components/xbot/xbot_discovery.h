@@ -2,15 +2,14 @@
 
 #ifdef USE_ESP32
 
+#include <esp_gattc_api.h>
+
 #include <cstdint>
 #include <vector>
 
-#include <esp_gattc_api.h>
-
 #include "xbot_protocol.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // Handles are collected during the walk because esphome frees the discovered
 // database as soon as every client is established, and a later lookup finds an
@@ -31,7 +30,6 @@ struct GattWalk {
 // from a timer armed there. An empty result is normal.
 GattWalk walk_gatt(esp_gatt_if_t gattc_if, uint16_t conn_id);
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

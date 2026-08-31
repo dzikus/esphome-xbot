@@ -1,6 +1,13 @@
 # CI-only configuration that compiles the component with every entity platform
 # so a build-breaking change in any source file fails CI. Not meant for
 # flashing. Uses a dummy BLE MAC; no device is contacted at compile.
+
+# Overridden per matrix entry with `esphome -s board <name> compile`. The
+# default is the classic xtensa part; the workflow also builds an S3 and the
+# two riscv variants, which carry a different radio and a different toolchain.
+substitutions:
+  board: esp32dev
+
 esphome:
   name: ci-build
   # Matches the floor declared by require_esphome_version in the component.
@@ -10,11 +17,12 @@ esphome:
       name: "CI second vehicle"
 
 esp32:
-  board: esp32dev
+  board: ${board}
   framework:
     type: esp-idf
 
 logger:
+  level: VERY_VERBOSE
 
 external_components:
   - source:

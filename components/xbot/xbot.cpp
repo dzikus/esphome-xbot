@@ -2,15 +2,14 @@
 
 #ifdef USE_ESP32
 
-#include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
-
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
 
-namespace esphome {
-namespace xbot {
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
+
+namespace esphome::xbot {
 
 static const char *const TAG = XBOT_TAG;
 
@@ -47,7 +46,8 @@ void XbotHub::setup() {
   if (!this->ble_switch_present_) {
     this->ble_user_enabled_ = true;
     ESP_LOGD(TAG, "no bluetooth switch configured, staying enabled");
-    for (auto &cb : this->ble_state_cbs_) cb(true);
+    for (auto &cb : this->ble_state_cbs_)
+      cb(true);
     // The switch starts the first cycle when it restores; with none, start here.
     this->defer([this]() { this->start_cycle_(); });
   }
@@ -58,8 +58,8 @@ void XbotHub::dump_config() {
   ESP_LOGCONFIG(TAG, "  MAC: %s", this->parent()->address_str());
   ESP_LOGCONFIG(TAG, "  BLE enabled: %s", YESNO(this->ble_user_enabled_));
   ESP_LOGCONFIG(TAG, "  Obfuscation key: 0x%02X", this->xor_key_);
-  ESP_LOGCONFIG(TAG, "  Register blocks: %u, asked for %ux each",
-                static_cast<unsigned>(this->poll_table_.size()), this->probe_repeat_);
+  ESP_LOGCONFIG(TAG, "  Register blocks: %u, asked for %ux each", static_cast<unsigned>(this->poll_table_.size()),
+                this->probe_repeat_);
   if (this->profile_override_ != Profile::UNKNOWN) {
     const TransportProfile *p = profile_by_id(this->profile_override_);
     ESP_LOGCONFIG(TAG, "  Profile: forced to %s", p != nullptr ? p->name : "?");
@@ -70,8 +70,10 @@ void XbotHub::dump_config() {
 
 void XbotHub::update() {
   this->check_persist_flush_();
-  if (!this->ble_user_enabled_) return;
-  if (this->variant_refused_) return;
+  if (!this->ble_user_enabled_)
+    return;
+  if (this->variant_refused_)
+    return;
   if (this->state_ == State::LISTENING) {
     // The link is held on purpose, so re-read over it. Without this the values
     // would freeze at the first sweep until the vehicle drops the connection.
@@ -124,9 +126,11 @@ void XbotHub::trigger_immediate_poll() {
 }
 
 void XbotHub::set_ble_user_enabled(bool en) {
-  if (en == this->ble_user_enabled_) return;
+  if (en == this->ble_user_enabled_)
+    return;
   this->ble_user_enabled_ = en;
-  for (auto &cb : this->ble_state_cbs_) cb(en);
+  for (auto &cb : this->ble_state_cbs_)
+    cb(en);
   // Switching back on is the way to ask for another look, after a firmware
   // update renamed the vehicle or a different one took over this ble_client.
   if (en) {
@@ -171,7 +175,8 @@ void XbotHub::reset_cycle_state_() {
   }
   this->cccd_map_.clear();
   this->rx_.clear();
-  for (auto &cb : this->cycle_resets_) cb();
+  for (auto &cb : this->cycle_resets_)
+    cb();
 }
 
 void XbotHub::start_cycle_() {
@@ -210,22 +215,21 @@ void XbotHub::disconnect_() {
 }
 
 void XbotHub::finish_cycle_(const char *reason) {
-  if (this->state_ == State::IDLE) return;
-  ESP_LOGD(TAG, "cycle finished: %s (notifies=%" PRIu32 ", frames=%" PRIu32 ")", reason,
-           this->notifies_this_cycle_, this->frames_this_cycle_);
+  if (this->state_ == State::IDLE)
+    return;
+  ESP_LOGD(TAG, "cycle finished: %s (notifies=%" PRIu32 ", frames=%" PRIu32 ")", reason, this->notifies_this_cycle_,
+           this->frames_this_cycle_);
   // Bytes arrived and not one of them assembled. Only worth saying at the end
   // of a cycle, because a reply split across two notifications is ordinary.
-  if (this->notifies_this_cycle_ > 0 && this->frames_this_cycle_ == 0 &&
-      this->first_chunk_len_ != 0) {
-    log_unparsed(std::span<const uint8_t>(this->first_chunk_.data(), this->first_chunk_len_),
-                 this->xor_key_);
+  if (this->notifies_this_cycle_ > 0 && this->frames_this_cycle_ == 0 && this->first_chunk_len_ != 0) {
+    log_unparsed(std::span<const uint8_t>(this->first_chunk_.data(), this->first_chunk_len_), this->xor_key_);
   }
   this->state_ = State::IDLE;
-  if (this->connected_sensor_ != nullptr) this->connected_sensor_->publish_state(false);
+  if (this->connected_sensor_ != nullptr)
+    this->connected_sensor_->publish_state(false);
 }
 
-void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
-                                  esp_ble_gattc_cb_param_t *param) {
+void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
   switch (event) {
     case ESP_GATTC_OPEN_EVT: {
       if (param->open.status != ESP_GATT_OK) {
@@ -244,7 +248,8 @@ void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gatt
         this->arm_watchdog_();
       }
       this->state_ = State::DISCOVERING;
-      if (this->connected_sensor_ != nullptr) this->connected_sensor_->publish_state(true);
+      if (this->connected_sensor_ != nullptr)
+        this->connected_sensor_->publish_state(true);
       break;
     }
 
@@ -265,18 +270,19 @@ void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gatt
     }
 
     case ESP_GATTC_READ_CHAR_EVT: {
-      if (param->read.handle != this->name_handle_ || this->name_handle_ == 0) break;
+      if (param->read.handle != this->name_handle_ || this->name_handle_ == 0)
+        break;
       // The read can land after the link is gone; conn_id is not cleared until
       // the close event, so the base class filter lets it through.
-      if (this->state_ != State::DISCOVERING) break;
+      if (this->state_ != State::DISCOVERING)
+        break;
       this->cancel_timeout("name_read");
       if (param->read.status != ESP_GATT_OK || param->read.value_len == 0) {
         ESP_LOGW(TAG, "device name unreadable, status=%d", param->read.status);
         this->continue_setup_();
         break;
       }
-      this->apply_name_variant_(std::string(reinterpret_cast<const char *>(param->read.value),
-                                            param->read.value_len));
+      this->apply_name_variant_(std::string(reinterpret_cast<const char *>(param->read.value), param->read.value_len));
       break;
     }
 
@@ -292,7 +298,8 @@ void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gatt
     }
 
     case ESP_GATTC_WRITE_DESCR_EVT: {
-      if (param->write.handle != this->cccd_handle_) break;
+      if (param->write.handle != this->cccd_handle_)
+        break;
       if (param->write.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "CCCD write rejected, status=%d", param->write.status);
       } else {
@@ -303,7 +310,8 @@ void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gatt
     }
 
     case ESP_GATTC_CONGEST_EVT: {
-      if (param->congest.conn_id != this->parent()->get_conn_id()) break;
+      if (param->congest.conn_id != this->parent()->get_conn_id())
+        break;
       this->link_congested_ = param->congest.congested;
       ESP_LOGD(TAG, "l2cap %scongested", this->link_congested_ ? "" : "un");
       if (!this->link_congested_ && this->probe_deferred_) {
@@ -337,8 +345,7 @@ void XbotHub::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gatt
 }
 
 void XbotHub::handle_search_complete_() {
-  GattWalk walk = walk_gatt(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()),
-                            this->parent()->get_conn_id());
+  GattWalk walk = walk_gatt(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id());
   this->name_handle_ = walk.name_handle;
   this->cccd_map_ = std::move(walk.cccds);
   std::vector<DiscoveredChar> found = std::move(walk.chars);
@@ -351,16 +358,16 @@ void XbotHub::handle_search_complete_() {
       auto svc = espbt::ESPBTUUID::from_raw(cand.service_uuid);
       if (this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.write_uuid)) &&
           this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.notify_uuid))) {
-        found.push_back(DiscoveredChar{cand.service_uuid, cand.write_uuid});
-        found.push_back(DiscoveredChar{cand.service_uuid, cand.notify_uuid});
+        found.push_back(DiscoveredChar{.service = cand.service_uuid, .characteristic = cand.write_uuid});
+        found.push_back(DiscoveredChar{.service = cand.service_uuid, .characteristic = cand.notify_uuid});
         ESP_LOGI(TAG, "profile matched by direct lookup: %s", cand.name);
         break;
       }
     }
   }
 
-  Profile detected = this->profile_override_ != Profile::UNKNOWN ? this->profile_override_
-                                                                 : detect_profile(found);
+  const Profile detected =
+      this->profile_override_ != Profile::UNKNOWN ? this->profile_override_ : detect_profile(found);
   this->profile_ = detected;
 
   const TransportProfile *p = profile_by_id(detected);
@@ -404,7 +411,7 @@ void XbotHub::handle_search_complete_() {
 }
 
 void XbotHub::apply_name_variant_(const std::string &name) {
-  ProtocolVariant v = variant_for_name(name);
+  const ProtocolVariant v = variant_for_name(name);
 
   if (v.id != SUPPORTED_VARIANT) {
     // Stop trying. The name will not change between cycles, so retrying every
@@ -429,7 +436,8 @@ void XbotHub::apply_name_variant_(const std::string &name) {
 
 void XbotHub::continue_setup_() {
   this->cancel_timeout("name_read");
-  if (this->state_ != State::DISCOVERING) return;
+  if (this->state_ != State::DISCOVERING)
+    return;
 
   if (this->write_handle_ == 0) {
     ESP_LOGW(TAG, "no write handle, nothing could be asked of this vehicle");
@@ -447,7 +455,8 @@ void XbotHub::continue_setup_() {
   // Probing starts once the subscription is confirmed; this only covers the
   // case where that confirmation never arrives.
   this->set_timeout("cccd_wait", CCCD_WAIT_MS, [this]() {
-    if (!this->probes_started_) ESP_LOGW(TAG, "no CCCD confirmation, probing anyway");
+    if (!this->probes_started_)
+      ESP_LOGW(TAG, "no CCCD confirmation, probing anyway");
     this->start_probes_();
   });
 
@@ -472,18 +481,18 @@ bool XbotHub::resolve_notify_handles_(const TransportProfile &p) {
   }
   if (this->cccd_handle_ == 0) {
     auto *descr = this->parent()->get_config_descriptor(this->notify_handle_);
-    if (descr != nullptr) this->cccd_handle_ = descr->handle;
+    if (descr != nullptr)
+      this->cccd_handle_ = descr->handle;
   }
   if (this->cccd_handle_ == 0) {
-    ESP_LOGW(TAG, "no CCCD found for notify handle 0x%04X; the device will stay silent",
-             this->notify_handle_);
+    ESP_LOGW(TAG, "no CCCD found for notify handle 0x%04X; the device will stay silent", this->notify_handle_);
   }
   return true;
 }
 
 bool XbotHub::register_for_notify_() {
-  esp_err_t err = esp_ble_gattc_register_for_notify(
-      static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_remote_bda(), this->notify_handle_);
+  const esp_err_t err = esp_ble_gattc_register_for_notify(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()),
+                                                          this->parent()->get_remote_bda(), this->notify_handle_);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "register for notify failed, err=%d", err);
     return false;
@@ -497,9 +506,9 @@ void XbotHub::write_cccd_() {
     return;
   }
   uint8_t value[2] = {0x01, 0x00};
-  esp_err_t err = esp_ble_gattc_write_char_descr(
-      static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(), this->cccd_handle_,
-      sizeof(value), value, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+  const esp_err_t err = esp_ble_gattc_write_char_descr(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()),
+                                                       this->parent()->get_conn_id(), this->cccd_handle_, sizeof(value),
+                                                       value, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "CCCD write call failed, err=%d", err);
     this->start_probes_();
@@ -518,10 +527,12 @@ bool XbotHub::resolve_write_handle_(const TransportProfile &p) {
 }
 
 void XbotHub::start_probes_() {
-  if (this->probes_started_) return;
+  if (this->probes_started_)
+    return;
   this->probes_started_ = true;
   this->cancel_timeout("cccd_wait");
-  if (this->write_handle_ == 0) return;
+  if (this->write_handle_ == 0)
+    return;
   if (this->poll_table_.empty()) {
     ESP_LOGW(TAG, "no registers to read, the poll table arrived empty");
     return;
@@ -537,8 +548,8 @@ void XbotHub::start_probes_() {
 void XbotHub::send_probe_(size_t index, uint8_t repeat) {
   if (index >= this->poll_table_.size()) {
     this->sweep_active_ = false;
-    ESP_LOGI(TAG, "probe list exhausted (notifies=%" PRIu32 ", frames=%" PRIu32 ")",
-             this->notifies_this_cycle_, this->frames_this_cycle_);
+    ESP_LOGI(TAG, "probe list exhausted (notifies=%" PRIu32 ", frames=%" PRIu32 ")", this->notifies_this_cycle_,
+             this->frames_this_cycle_);
     return;
   }
   this->pending_probe_index_ = index;
@@ -549,8 +560,7 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
     this->probe_deferred_ = true;
     this->congestion_waits_++;
     ESP_LOGD(TAG, "probe %u.%u deferred, link congested", static_cast<unsigned>(index), repeat);
-    this->set_timeout("probe", PROBE_INTERVAL_MS,
-                      [this, index, repeat]() { this->send_probe_(index, repeat); });
+    this->set_timeout("probe", PROBE_INTERVAL_MS, [this, index, repeat]() { this->send_probe_(index, repeat); });
     return;
   }
   if (this->link_congested_) {
@@ -564,18 +574,17 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
   const PollEntry &pr = this->poll_table_[index];
   std::array<uint8_t, MAX_FRAME> buf{};
   const uint8_t payload[] = {pr.count};
-  size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
-  std::span<uint8_t> frame(buf.data(), len);
+  const size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
+  const std::span<uint8_t> frame(buf.data(), len);
   apply_xor(frame, this->xor_key_);
-  ESP_LOGV(TAG, ">>> probe %u.%u dest=0x%02X cmd=0x%02X reg=0x%02X n=0x%02X: %s",
-           static_cast<unsigned>(index), repeat, pr.dest, pr.cmd, pr.reg, pr.count,
-           hex_dump(frame.data(), frame.size()).c_str());
-  esp_err_t err = esp_ble_gattc_write_char(
+  ESP_LOGV(TAG, ">>> probe %u.%u dest=0x%02X cmd=0x%02X reg=0x%02X n=0x%02X: %s", static_cast<unsigned>(index), repeat,
+           pr.dest, pr.cmd, pr.reg, pr.count, hex_dump(frame.data(), frame.size()).c_str());
+  const esp_err_t err = esp_ble_gattc_write_char(
       static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(), this->write_handle_,
       static_cast<uint16_t>(frame.size()), frame.data(),
-      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP,
-      ESP_GATT_AUTH_REQ_NONE);
-  if (err != ESP_OK) ESP_LOGW(TAG, "probe write failed, err=%d", err);
+      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP, ESP_GATT_AUTH_REQ_NONE);
+  if (err != ESP_OK)
+    ESP_LOGW(TAG, "probe write failed, err=%d", err);
 
   size_t next_index = index;
   uint8_t next_repeat = repeat + 1;
@@ -584,25 +593,24 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
     next_repeat = 0;
   }
   this->set_timeout("probe", PROBE_INTERVAL_MS,
-                    [this, next_index, next_repeat]() {
-                      this->send_probe_(next_index, next_repeat);
-                    });
+                    [this, next_index, next_repeat]() { this->send_probe_(next_index, next_repeat); });
 }
 
 void XbotHub::mark_for_verify_(uint8_t dest, uint8_t reg) {
-  size_t limit = std::min<size_t>(this->poll_table_.size(), 32);
+  const size_t limit = std::min<size_t>(this->poll_table_.size(), 32);
   for (size_t i = 0; i < limit; i++) {
     const PollEntry &pr = this->poll_table_[i];
-    if (pr.dest != dest) continue;
-    int last = pr.reg + pr.count / 2 - 1;
-    if (reg < pr.reg || reg > last) continue;
+    if (pr.dest != dest)
+      continue;
+    const int last = pr.reg + (pr.count / 2) - 1;
+    if (reg < pr.reg || reg > last)
+      continue;
     this->verify_mask_ |= 1u << i;
     // Re-armed, so a burst is read back once after its last write.
     this->set_timeout("verify", WRITE_VERIFY_MS, [this]() { this->run_verify_(); });
     return;
   }
-  ESP_LOGW(TAG, "reg=0x%02X was written but no polled block covers it, so nothing reads it back",
-           reg);
+  ESP_LOGW(TAG, "reg=0x%02X was written but no polled block covers it, so nothing reads it back", reg);
 }
 
 void XbotHub::run_verify_() {
@@ -610,27 +618,27 @@ void XbotHub::run_verify_() {
     this->verify_mask_ = 0;
     return;
   }
-  if (this->verify_mask_ == 0) return;
+  if (this->verify_mask_ == 0)
+    return;
   if (this->link_congested_) {
     ESP_LOGD(TAG, "verify reads held, link congested");
     this->set_timeout("verify", PROBE_INTERVAL_MS, [this]() { this->run_verify_(); });
     return;
   }
 
-  size_t index = static_cast<size_t>(__builtin_ctz(this->verify_mask_));
+  const size_t index = static_cast<size_t>(__builtin_ctz(this->verify_mask_));
   this->verify_mask_ &= ~(1u << index);
   const PollEntry &pr = this->poll_table_[index];
 
   std::array<uint8_t, MAX_FRAME> buf{};
   const uint8_t payload[] = {pr.count};
-  size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
-  std::span<uint8_t> frame(buf.data(), len);
+  const size_t len = build_request(buf, pr.dest, pr.cmd, pr.reg, payload);
+  const std::span<uint8_t> frame(buf.data(), len);
   apply_xor(frame, this->xor_key_);
-  esp_err_t err = esp_ble_gattc_write_char(
-      static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(),
-      this->write_handle_, static_cast<uint16_t>(frame.size()), frame.data(),
-      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP,
-      ESP_GATT_AUTH_REQ_NONE);
+  const esp_err_t err = esp_ble_gattc_write_char(
+      static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(), this->write_handle_,
+      static_cast<uint16_t>(frame.size()), frame.data(),
+      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "verify read of block 0x%02X failed to go out, err=%d", pr.reg, err);
   } else {
@@ -653,41 +661,50 @@ uint32_t XbotHub::persist_key(uint8_t src, uint8_t reg) {
 
 uint32_t XbotHub::flush_persist_() {
   uint32_t saved = 0;
-  for (std::function<bool()> &f : this->persist_flush_) {
-    if (f()) saved++;
+  for (const std::function<bool()> &f : this->persist_flush_) {
+    if (f())
+      saved++;
   }
-  if (saved != 0) global_preferences->sync();
+  if (saved != 0)
+    global_preferences->sync();
   return saved;
 }
 
 void XbotHub::check_persist_flush_() {
-  if (!this->persist_pending_) return;
-  if (millis() - this->last_data_ms_ < PERSIST_IDLE_MS) return;
+  if (!this->persist_pending_)
+    return;
+  if (millis() - this->last_data_ms_ < PERSIST_IDLE_MS)
+    return;
   this->persist_pending_ = false;
-  uint32_t saved = this->flush_persist_();
+  const uint32_t saved = this->flush_persist_();
   ESP_LOGI(TAG, "vehicle out of reach, stored %" PRIu32 " values", saved);
 }
 
 void XbotHub::on_shutdown() {
   // A planned restart would otherwise throw away everything read since the last
   // flush. Still one write, and only when something is actually unsaved.
-  if (this->flush_persist_() != 0) ESP_LOGI(TAG, "stored pending values before shutdown");
+  if (this->flush_persist_() != 0)
+    ESP_LOGI(TAG, "stored pending values before shutdown");
 }
 
 void XbotHub::dispatch_registers_(std::span<const uint8_t> frame) {
-  if (this->reg_watchers_.empty() || frame.size() < 8) return;
+  if (this->reg_watchers_.empty() || frame.size() < 8)
+    return;
   this->last_data_ms_ = millis();
   this->persist_pending_ = true;
   // Never zero, so a watcher that has not seen a value yet cannot look like it
   // shares a frame with one that has.
-  if (++this->frame_seq_ == 0) this->frame_seq_ = 1;
-  uint8_t src = frame[3];
+  if (++this->frame_seq_ == 0)
+    this->frame_seq_ = 1;
+  const uint8_t src = frame[3];
   decode_registers(frame, [this, src](RegisterValue rv) {
-    for (RegWatcher &w : this->reg_watchers_) {
-      if (w.src != src || w.reg != rv.reg) continue;
+    for (const RegWatcher &w : this->reg_watchers_) {
+      if (w.src != src || w.reg != rv.reg)
+        continue;
       // Not-available marker for a plain count, but the legitimate value -1 for
       // a register the entity reads as two's complement.
-      if (rv.value == 0xFFFF && !w.accepts_sentinel) continue;
+      if (rv.value == 0xFFFF && !w.accepts_sentinel)
+        continue;
       w.cb(rv.value);
     }
   });
@@ -700,8 +717,7 @@ bool XbotHub::write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t val
     return false;
   }
   if (!this->link_ready()) {
-    ESP_LOGW(TAG, "refusing write reg=0x%02X: nothing has decoded yet, so the key is unproven",
-             reg);
+    ESP_LOGW(TAG, "refusing write reg=0x%02X: nothing has decoded yet, so the key is unproven", reg);
     this->status_momentary_warning("write");
     return false;
   }
@@ -711,16 +727,15 @@ bool XbotHub::write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t val
     return false;
   }
   std::array<uint8_t, MAX_FRAME> buf{};
-  size_t len = build_write(buf, dest, cmd, reg, value);
-  std::span<uint8_t> frame(buf.data(), len);
+  const size_t len = build_write(buf, dest, cmd, reg, value);
+  const std::span<uint8_t> frame(buf.data(), len);
   apply_xor(frame, this->xor_key_);
   // Kept loud: this is the audit trail for everything sent to the vehicle.
   ESP_LOGW(TAG, "WRITE dest=0x%02X cmd=0x%02X reg=0x%02X value=%d", dest, cmd, reg, value);
-  esp_err_t err = esp_ble_gattc_write_char(
+  const esp_err_t err = esp_ble_gattc_write_char(
       static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(), this->write_handle_,
       static_cast<uint16_t>(frame.size()), frame.data(),
-      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP,
-      ESP_GATT_AUTH_REQ_NONE);
+      WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "write failed, err=%d", err);
     this->status_momentary_warning("write");
@@ -736,15 +751,16 @@ bool XbotHub::write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t val
 }
 
 void XbotHub::handle_notify_(const esp_ble_gattc_cb_param_t::gattc_notify_evt_param &n) {
-  if (n.value == nullptr || n.value_len == 0) return;
+  if (n.value == nullptr || n.value_len == 0)
+    return;
   // Every node on this ble_client sees every notification, so another entity
   // subscribed to a different characteristic would otherwise feed our decoder.
-  if (this->notify_handle_ != 0 && n.handle != this->notify_handle_) return;
+  if (this->notify_handle_ != 0 && n.handle != this->notify_handle_)
+    return;
 
   this->notifies_this_cycle_++;
 
-  ESP_LOGV(TAG, "<<< notify h=0x%04X len=%u: %s", n.handle, n.value_len,
-           hex_dump(n.value, n.value_len).c_str());
+  ESP_LOGV(TAG, "<<< notify h=0x%04X len=%u: %s", n.handle, n.value_len, hex_dump(n.value, n.value_len).c_str());
 
   // Kept raw for the end-of-cycle triage, before the key is applied.
   if (this->first_chunk_len_ == 0) {
@@ -752,7 +768,7 @@ void XbotHub::handle_notify_(const esp_ble_gattc_cb_param_t::gattc_notify_evt_pa
     std::copy(n.value, n.value + this->first_chunk_len_, this->first_chunk_.begin());
   }
 
-  size_t dropped = this->rx_.append(n.value, n.value_len, this->xor_key_);
+  const size_t dropped = this->rx_.append(n.value, n.value_len, this->xor_key_);
   if (dropped != 0)
     ESP_LOGW(TAG, "receive buffer never synced, dropping %u bytes", static_cast<unsigned>(dropped));
 
@@ -768,7 +784,6 @@ void XbotHub::report_frames_() {
   });
 }
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

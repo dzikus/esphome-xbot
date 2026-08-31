@@ -4,11 +4,9 @@
 
 #include "esphome/components/select/select.h"
 #include "esphome/core/component.h"
-
 #include "xbot.h"
 
-namespace esphome {
-namespace xbot {
+namespace esphome::xbot {
 
 // Register value is the index into the option list.
 class XbotRegisterSelect : public select::Select, public Parented<XbotHub>, public Component {
@@ -23,15 +21,18 @@ class XbotRegisterSelect : public select::Select, public Parented<XbotHub>, publ
     uint8_t restored;
     if (this->store_.load(&restored)) {
       auto option = this->at(restored);
-      if (option.has_value()) this->publish_state(*option);
+      if (option.has_value())
+        this->publish_state(*option);
     }
     this->parent_->register_persist([this]() { return this->store_.flush(); });
     this->parent_->watch_register(this->src_, this->register_, [this](uint16_t raw) {
       auto option = this->at(raw);
-      if (!option.has_value()) return;
+      if (!option.has_value())
+        return;
       this->store_.stage(static_cast<uint8_t>(raw));
       auto current = this->active_index();
-      if (current.has_value() && *current == raw) return;
+      if (current.has_value() && *current == raw)
+        return;
       this->publish_state(*option);
     });
   }
@@ -39,9 +40,9 @@ class XbotRegisterSelect : public select::Select, public Parented<XbotHub>, publ
  protected:
   void control(const std::string &value) override {
     auto idx = this->index_of(value);
-    if (!idx.has_value()) return;
-    if (this->parent_->write_register(this->dest_, this->cmd_, this->register_,
-                                      static_cast<int16_t>(*idx))) {
+    if (!idx.has_value())
+      return;
+    if (this->parent_->write_register(this->dest_, this->cmd_, this->register_, static_cast<int16_t>(*idx))) {
       this->publish_state(value);
     }
   }
@@ -53,7 +54,6 @@ class XbotRegisterSelect : public select::Select, public Parented<XbotHub>, publ
   PersistedValue<uint8_t> store_;
 };
 
-}  // namespace xbot
-}  // namespace esphome
+}  // namespace esphome::xbot
 
 #endif  // USE_ESP32

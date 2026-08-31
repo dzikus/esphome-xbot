@@ -18,6 +18,7 @@
         "ms-vscode.cpptools",
         "redhat.vscode-yaml",
         "github.vscode-github-actions",
+        "timonwong.shellcheck",
         "tamasfe.even-better-toml"
       ],
       "settings": {
@@ -32,6 +33,12 @@
             "source.organizeImports.ruff": "explicit"
           }
         },
+        "[cpp]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "ms-vscode.cpptools"
+        },
+        "C_Cpp.formatting": "clangFormat",
+        "C_Cpp.clang_format_style": "file",
         "yaml.customTags": ["!secret scalar", "!lambda scalar"],
         "yaml.schemaStore.enable": true,
         "yaml.schemas": {
@@ -43,7 +50,8 @@
           "**/.github/**/*.yml": "yaml",
           "**/.github/**/*.yaml": "yaml"
         },
-        "C_Cpp.default.compilerPath": "/home/vscode/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
+        "C_Cpp.default.compilerPath": "/home/vscode/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32-elf-g++",
+        "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
         "C_Cpp.default.cppStandard": "gnu++20",
         "C_Cpp.default.cStandard": "gnu17",
         "C_Cpp.default.includePath": [
