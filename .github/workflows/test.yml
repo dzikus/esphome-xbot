@@ -78,11 +78,11 @@ jobs:
       - name: Compile the esphome-free layers under strict warnings
         run: |
           set -euo pipefail
-          STRICT="-std=gnu++20 -fsyntax-only -Werror -Wall -Wextra -Wconversion
-                  -Wsign-conversion -Wshadow -Wold-style-cast -I components/xbot"
-          g++ $STRICT components/xbot/xbot_protocol.cpp
+          strict=(-std=gnu++20 -fsyntax-only -Werror -Wall -Wextra -Wconversion
+                  -Wsign-conversion -Wshadow -Wold-style-cast -I components/xbot)
+          g++ "${strict[@]}" components/xbot/xbot_protocol.cpp
           for h in xbot_entity_logic.h xbot_receive.h; do
-            echo "#include \"$h\"" | g++ $STRICT -x c++ -
+            echo "#include \"$h\"" | g++ "${strict[@]}" -x c++ -
           done
   clang-tidy:
     name: clang-tidy (esp32 compile database)
