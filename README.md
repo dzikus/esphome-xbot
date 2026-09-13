@@ -1,6 +1,10 @@
 # esphome-xbot
 
-![tests](https://github.com/dzikus/esphome-xbot/actions/workflows/test.yml/badge.svg?branch=main)
+[![tests](https://github.com/dzikus/esphome-xbot/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/dzikus/esphome-xbot/actions/workflows/test.yml)
+[![codeql](https://github.com/dzikus/esphome-xbot/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/dzikus/esphome-xbot/actions/workflows/codeql.yml)
+[![scorecard](https://api.scorecard.dev/projects/github.com/dzikus/esphome-xbot/badge)](https://scorecard.dev/viewer/?uri=github.com/dzikus/esphome-xbot)
+[![release](https://img.shields.io/github/v/release/dzikus/esphome-xbot?sort=semver)](https://github.com/dzikus/esphome-xbot/releases/latest)
+[![license](https://img.shields.io/github/license/dzikus/esphome-xbot)](LICENSE)
 
 <a href="https://www.buymeacoffee.com/dzikus" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
