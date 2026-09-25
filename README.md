@@ -409,12 +409,34 @@ implemented here and none of it is planned.
 ## Development
 
 ```bash
-(cd tests && pio test -e native)      # host unit tests, no hardware needed
-esphome config .intellisense.yaml     # config validation against a local checkout
+(cd tests && pio test -e native)                # host unit tests, no hardware needed
+python -m unittest discover -s tests/python     # code generation and tables, needs esphome
+esphome config .intellisense.yaml               # config validation against a local checkout
 ```
+
+New functionality comes with tests in the same pull request: protocol and
+decoding in `tests/test_protocol/`, code generation and the entity tables in
+`tests/python/`.
 
 A devcontainer is included. It installs esphome, platformio and pre-commit, and
 generates C++ IntelliSense settings from a real build on every start.
+
+## Issues and pull requests
+
+Report problems at <https://github.com/dzikus/esphome-xbot/issues>. Include the
+component version or commit, the ESPHome version, the vehicle and its advertised
+name, the configuration and the node log. Report security issues privately, see
+[SECURITY.md](SECURITY.md).
+
+Pull requests go against `main`:
+
+- Run `pre-commit install` once. The hooks format C++ and Python and check that
+  commit messages follow Conventional Commits.
+- A pull request that adds functionality adds tests for it, see
+  [Development](#development).
+- CI runs pre-commit, the unit tests, clang-tidy and the ESP32 builds on every
+  pull request. All of them must pass before merge.
+- User-visible changes get an entry in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
