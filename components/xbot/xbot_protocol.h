@@ -148,8 +148,10 @@ void decode_registers(std::span<const uint8_t> frame, F &&fn) {
     // A reply longer than the map would wrap the register number.
     if (static_cast<size_t>(base) + (i / 2) > 0xFF)
       break;
-    fn(RegisterValue{.reg = static_cast<uint8_t>(base + (i / 2)),
-                     .value = static_cast<uint16_t>(frame[6 + i] | (frame[6 + i + 1] << 8))});
+    fn(RegisterValue{
+        .reg = static_cast<uint8_t>(base + (i / 2)),
+        .value = static_cast<uint16_t>(frame[6 + i] | (static_cast<uint32_t>(frame[6 + i + 1]) << 8)),
+    });
   }
 }
 

@@ -40,17 +40,17 @@ static const uint32_t PERSIST_IDLE_MS = 600000;
 void XbotHub::setup() {
   // BLEClient sets itself up after this component and would otherwise auto
   // connect outside a cycle, so the disable has to land after that.
-  this->defer([this]() { this->parent()->set_enabled(false); });
+  this->defer([this] { this->parent()->set_enabled(false); });
   // The switch platform owns this flag when it is configured. Without it
   // nothing would ever turn the radio on and the hub would sit idle for good,
   // so a config that leaves the switch out runs enabled.
   if (!this->ble_switch_present_) {
     this->ble_user_enabled_ = true;
     ESP_LOGD(TAG, "no bluetooth switch configured, staying enabled");
-    for (auto &cb : this->ble_state_cbs_)
+    for (const auto &cb : this->ble_state_cbs_)
       cb(true);
     // The switch starts the first cycle when it restores; with none, start here.
-    this->defer([this]() { this->start_cycle_(); });
+    this->defer([this] { this->start_cycle_(); });
   }
 }
 
@@ -130,7 +130,7 @@ void XbotHub::set_ble_user_enabled(bool en) {
   if (en == this->ble_user_enabled_)
     return;
   this->ble_user_enabled_ = en;
-  for (auto &cb : this->ble_state_cbs_)
+  for (const auto &cb : this->ble_state_cbs_)
     cb(en);
   // Switching back on is the way to ask for another look, after a firmware
   // update renamed the vehicle or a different one took over this ble_client.
@@ -176,7 +176,7 @@ void XbotHub::reset_cycle_state_() {
   }
   this->cccd_map_.clear();
   this->rx_.clear();
-  for (auto &cb : this->cycle_resets_)
+  for (const auto &cb : this->cycle_resets_)
     cb();
 }
 
@@ -189,7 +189,7 @@ void XbotHub::start_cycle_() {
 }
 
 void XbotHub::arm_watchdog_() {
-  this->set_timeout("cycle_watchdog", WHOLE_CYCLE_TIMEOUT_MS, [this]() {
+  this->set_timeout("cycle_watchdog", WHOLE_CYCLE_TIMEOUT_MS, [this] {
     if (this->state_ == State::LISTENING) {
       ESP_LOGD(TAG, "watchdog ignored, link is held on purpose");
       return;
@@ -355,7 +355,7 @@ void XbotHub::handle_search_complete_() {
     // No attribute table to walk, so ask for each profile's pair by UUID; the
     // per-characteristic lookup still works even when the dump does not.
     for (const TransportProfile &cand : profile_table()) {
-      auto svc = espbt::ESPBTUUID::from_raw(cand.service_uuid);
+      const auto svc = espbt::ESPBTUUID::from_raw(cand.service_uuid);
       if (this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.write_uuid)) &&
           this->parent()->get_characteristic(svc, espbt::ESPBTUUID::from_raw(cand.notify_uuid))) {
         found.push_back(DiscoveredChar{.service = cand.service_uuid, .characteristic = cand.write_uuid});
@@ -374,7 +374,7 @@ void XbotHub::handle_search_complete_() {
   if (p == nullptr) {
     ESP_LOGW(TAG, "no known transport profile on this device");
     ESP_LOGW(TAG, "set profile: in the yaml to force one");
-    this->set_timeout("listen_hold", LISTEN_HOLD_MS, [this]() { this->disconnect_(); });
+    this->set_timeout("listen_hold", LISTEN_HOLD_MS, [this] { this->disconnect_(); });
     return;
   }
 
@@ -399,7 +399,7 @@ void XbotHub::handle_search_complete_() {
   if (this->name_handle_ != 0 &&
       esp_ble_gattc_read_char(static_cast<esp_gatt_if_t>(this->parent()->get_gattc_if()), this->parent()->get_conn_id(),
                               this->name_handle_, ESP_GATT_AUTH_REQ_NONE) == ESP_OK) {
-    this->set_timeout("name_read", NAME_READ_TIMEOUT_MS, [this]() {
+    this->set_timeout("name_read", NAME_READ_TIMEOUT_MS, [this] {
       ESP_LOGW(TAG, "device name never arrived, assuming the default variant");
       this->continue_setup_();
     });
@@ -454,7 +454,7 @@ void XbotHub::continue_setup_() {
 
   // Probing starts once the subscription is confirmed; this only covers the
   // case where that confirmation never arrives.
-  this->set_timeout("cccd_wait", CCCD_WAIT_MS, [this]() {
+  this->set_timeout("cccd_wait", CCCD_WAIT_MS, [this] {
     if (!this->probes_started_)
       ESP_LOGW(TAG, "no CCCD confirmation, probing anyway");
     this->start_probes_();
@@ -464,9 +464,9 @@ void XbotHub::continue_setup_() {
 }
 
 bool XbotHub::resolve_notify_handles_(const TransportProfile &p) {
-  auto service = espbt::ESPBTUUID::from_raw(p.service_uuid);
-  auto chr = espbt::ESPBTUUID::from_raw(p.notify_uuid);
-  auto *characteristic = this->parent()->get_characteristic(service, chr);
+  const auto service = espbt::ESPBTUUID::from_raw(p.service_uuid);
+  const auto chr = espbt::ESPBTUUID::from_raw(p.notify_uuid);
+  const auto *characteristic = this->parent()->get_characteristic(service, chr);
   if (characteristic == nullptr) {
     ESP_LOGW(TAG, "notify characteristic missing after profile match");
     return false;
@@ -480,7 +480,7 @@ bool XbotHub::resolve_notify_handles_(const TransportProfile &p) {
     }
   }
   if (this->cccd_handle_ == 0) {
-    auto *descr = this->parent()->get_config_descriptor(this->notify_handle_);
+    const auto *descr = this->parent()->get_config_descriptor(this->notify_handle_);
     if (descr != nullptr)
       this->cccd_handle_ = descr->handle;
   }
@@ -516,8 +516,8 @@ void XbotHub::write_cccd_() {
 }
 
 bool XbotHub::resolve_write_handle_(const TransportProfile &p) {
-  auto *chr = this->parent()->get_characteristic(espbt::ESPBTUUID::from_raw(p.service_uuid),
-                                                 espbt::ESPBTUUID::from_raw(p.write_uuid));
+  const auto *chr = this->parent()->get_characteristic(espbt::ESPBTUUID::from_raw(p.service_uuid),
+                                                       espbt::ESPBTUUID::from_raw(p.write_uuid));
   if (chr == nullptr) {
     ESP_LOGW(TAG, "write characteristic missing");
     return false;
@@ -542,7 +542,7 @@ void XbotHub::start_probes_() {
   ESP_LOGI(TAG, "reading %u registers x%u, %" PRIu32 " ms apart, write-%s",
            static_cast<unsigned>(this->poll_table_.size()), this->probe_repeat_, PROBE_INTERVAL_MS,
            WRITE_WITH_RESPONSE ? "with-response" : "no-response");
-  this->set_timeout("probe", POST_CONNECT_SETTLE_MS, [this]() { this->send_probe_(0, 0); });
+  this->set_timeout("probe", POST_CONNECT_SETTLE_MS, [this] { this->send_probe_(0, 0); });
 }
 
 void XbotHub::send_probe_(size_t index, uint8_t repeat) {
@@ -560,7 +560,7 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
     this->probe_deferred_ = true;
     this->congestion_waits_++;
     ESP_LOGD(TAG, "probe %u.%u deferred, link congested", static_cast<unsigned>(index), repeat);
-    this->set_timeout("probe", PROBE_INTERVAL_MS, [this, index, repeat]() { this->send_probe_(index, repeat); });
+    this->set_timeout("probe", PROBE_INTERVAL_MS, [this, index, repeat] { this->send_probe_(index, repeat); });
     return;
   }
   if (this->link_congested_) {
@@ -593,7 +593,7 @@ void XbotHub::send_probe_(size_t index, uint8_t repeat) {
     next_repeat = 0;
   }
   this->set_timeout("probe", PROBE_INTERVAL_MS,
-                    [this, next_index, next_repeat]() { this->send_probe_(next_index, next_repeat); });
+                    [this, next_index, next_repeat] { this->send_probe_(next_index, next_repeat); });
 }
 
 void XbotHub::mark_for_verify_(uint8_t dest, uint8_t reg) {
@@ -607,7 +607,7 @@ void XbotHub::mark_for_verify_(uint8_t dest, uint8_t reg) {
       continue;
     this->verify_mask_ |= 1u << i;
     // Re-armed, so a burst is read back once after its last write.
-    this->set_timeout("verify", WRITE_VERIFY_MS, [this]() { this->run_verify_(); });
+    this->set_timeout("verify", WRITE_VERIFY_MS, [this] { this->run_verify_(); });
     return;
   }
   ESP_LOGW(TAG, "reg=0x%02X was written but no polled block covers it, so nothing reads it back", reg);
@@ -622,7 +622,7 @@ void XbotHub::run_verify_() {
     return;
   if (this->link_congested_) {
     ESP_LOGD(TAG, "verify reads held, link congested");
-    this->set_timeout("verify", PROBE_INTERVAL_MS, [this]() { this->run_verify_(); });
+    this->set_timeout("verify", PROBE_INTERVAL_MS, [this] { this->run_verify_(); });
     return;
   }
 
@@ -647,7 +647,7 @@ void XbotHub::run_verify_() {
 
   // Spaced like probes; a burst goes into the buffer that drops writes silently.
   if (this->verify_mask_ != 0) {
-    this->set_timeout("verify", PROBE_INTERVAL_MS, [this]() { this->run_verify_(); });
+    this->set_timeout("verify", PROBE_INTERVAL_MS, [this] { this->run_verify_(); });
   }
 }
 
