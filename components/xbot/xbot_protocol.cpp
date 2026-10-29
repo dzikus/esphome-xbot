@@ -7,31 +7,41 @@
 namespace esphome::xbot {
 
 constexpr auto PROFILE_TABLE = std::to_array<TransportProfile>({
-    {.id = Profile::NUS,
-     .name = "nus",
-     .service_uuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-     .write_uuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
-     .notify_uuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"},
-    {.id = Profile::AE00,
-     .name = "ae00",
-     .service_uuid = "0000ae00-0000-1000-8000-00805f9b34fb",
-     .write_uuid = "0000ae01-0000-1000-8000-00805f9b34fb",
-     .notify_uuid = "0000ae02-0000-1000-8000-00805f9b34fb"},
-    {.id = Profile::FFE0,
-     .name = "ffe0",
-     .service_uuid = "0000ffe0-0000-1000-8000-00805f9b34fb",
-     .write_uuid = "0000fff3-0000-1000-8000-00805f9b34fb",
-     .notify_uuid = "0000fff4-0000-1000-8000-00805f9b34fb"},
-    {.id = Profile::FFF0_F3F7,
-     .name = "fff0-f3f7",
-     .service_uuid = "0000fff0-0000-1000-8000-00805f9b34fb",
-     .write_uuid = "0000fff3-0000-1000-8000-00805f9b34fb",
-     .notify_uuid = "0000fff7-0000-1000-8000-00805f9b34fb"},
-    {.id = Profile::FFF0_F2F1,
-     .name = "fff0-f2f1",
-     .service_uuid = "0000fff0-0000-1000-8000-00805f9b34fb",
-     .write_uuid = "0000fff2-0000-1000-8000-00805f9b34fb",
-     .notify_uuid = "0000fff1-0000-1000-8000-00805f9b34fb"},
+    {
+        .id = Profile::NUS,
+        .name = "nus",
+        .service_uuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+        .write_uuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+        .notify_uuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    },
+    {
+        .id = Profile::AE00,
+        .name = "ae00",
+        .service_uuid = "0000ae00-0000-1000-8000-00805f9b34fb",
+        .write_uuid = "0000ae01-0000-1000-8000-00805f9b34fb",
+        .notify_uuid = "0000ae02-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        .id = Profile::FFE0,
+        .name = "ffe0",
+        .service_uuid = "0000ffe0-0000-1000-8000-00805f9b34fb",
+        .write_uuid = "0000fff3-0000-1000-8000-00805f9b34fb",
+        .notify_uuid = "0000fff4-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        .id = Profile::FFF0_F3F7,
+        .name = "fff0-f3f7",
+        .service_uuid = "0000fff0-0000-1000-8000-00805f9b34fb",
+        .write_uuid = "0000fff3-0000-1000-8000-00805f9b34fb",
+        .notify_uuid = "0000fff7-0000-1000-8000-00805f9b34fb",
+    },
+    {
+        .id = Profile::FFF0_F2F1,
+        .name = "fff0-f2f1",
+        .service_uuid = "0000fff0-0000-1000-8000-00805f9b34fb",
+        .write_uuid = "0000fff2-0000-1000-8000-00805f9b34fb",
+        .notify_uuid = "0000fff1-0000-1000-8000-00805f9b34fb",
+    },
 });
 
 std::span<const TransportProfile> profile_table() {
@@ -139,7 +149,11 @@ ProtocolVariant variant_for_name(std::string_view name) {
   if (has_m1 || name.find('X') < 2) {
     if (name.size() > 6) {
       return ProtocolVariant{
-          .id = 1, .xor_key = has_m1 ? uint8_t(0x7A) : uint8_t(0x18), .read_dest = 0x0A, .read_cmd = 0x01};
+          .id = 1,
+          .xor_key = has_m1 ? uint8_t(0x7A) : uint8_t(0x18),
+          .read_dest = 0x0A,
+          .read_cmd = 0x01,
+      };
     }
     return V3;
   }
@@ -192,7 +206,7 @@ bool checksum_ok(std::span<const uint8_t> frame) {
   for (size_t i = 2; i < body_end; i++)
     sum = static_cast<uint16_t>(sum + frame[i]);
   const uint16_t want = static_cast<uint16_t>(~sum);
-  const uint16_t got = static_cast<uint16_t>(frame[body_end] | (frame[body_end + 1] << 8));
+  const uint16_t got = static_cast<uint16_t>(frame[body_end] | (static_cast<uint32_t>(frame[body_end + 1]) << 8));
   return want == got;
 }
 
