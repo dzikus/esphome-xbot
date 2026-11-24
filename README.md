@@ -224,15 +224,19 @@ only the entities that collide.
 
 Names you write out yourself are never touched either way.
 
-Each vehicle still needs its own `device_id` so the duplicate-name check passes:
+Each vehicle still needs its own `device_id` so the duplicate-name check passes.
+ESPHome 2026.11 requires a `relation` on every device; `relation: via` keeps
+each vehicle a device of its own, linked to the node, as in earlier releases:
 
 ```yaml
 esphome:
   devices:
     - id: dev_a
       name: Scooter A
+      relation: via
     - id: dev_b
       name: Scooter B
+      relation: via
 
 sensor:
   - platform: xbot
