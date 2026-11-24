@@ -88,13 +88,13 @@ class XbotRegisterNumber : public number::Number, public Parented<XbotHub>, publ
     // 1.5 km/h limit, not 35 km/h.
     if (this->scale_reg_ != 0 && !this->scale_known_) {
       ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: the vehicle has not reported the scale yet", this->register_);
-      this->status_momentary_warning("write");
+      this->status_momentary_warning();
       return;
     }
     auto raw = write_count(value, this->scale_);
     if (!raw.has_value()) {
       ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: %.2f does not fit the register", this->register_, value);
-      this->status_momentary_warning("write");
+      this->status_momentary_warning();
       return;
     }
     if (this->parent_->write_register(this->dest_, this->cmd_, this->register_, *raw)) {

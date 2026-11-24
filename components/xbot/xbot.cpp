@@ -713,17 +713,17 @@ void XbotHub::dispatch_registers_(std::span<const uint8_t> frame) {
 bool XbotHub::write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t value) {
   if (this->state_ != State::LISTENING || this->write_handle_ == 0) {
     ESP_LOGW(TAG, "refusing write reg=0x%02X: no link", reg);
-    this->status_momentary_warning("write");
+    this->status_momentary_warning();
     return false;
   }
   if (!this->link_ready()) {
     ESP_LOGW(TAG, "refusing write reg=0x%02X: nothing has decoded yet, so the key is unproven", reg);
-    this->status_momentary_warning("write");
+    this->status_momentary_warning();
     return false;
   }
   if (this->link_congested_) {
     ESP_LOGW(TAG, "refusing write reg=0x%02X: link congested", reg);
-    this->status_momentary_warning("write");
+    this->status_momentary_warning();
     return false;
   }
   std::array<uint8_t, MAX_FRAME> buf{};
@@ -738,7 +738,7 @@ bool XbotHub::write_register(uint8_t dest, uint8_t cmd, uint8_t reg, int16_t val
       WRITE_WITH_RESPONSE ? ESP_GATT_WRITE_TYPE_RSP : ESP_GATT_WRITE_TYPE_NO_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (err != ESP_OK) {
     ESP_LOGW(TAG, "write failed, err=%d", err);
-    this->status_momentary_warning("write");
+    this->status_momentary_warning();
     return false;
   }
   // The write went out unacknowledged, so read the register back rather than
