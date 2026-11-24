@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.0 (2026-11-24)
+
+- The ESPHome floor is now 2026.11.0. ESPHome 2026.11 requires a `relation` on
+  every entry under `esphome: devices:` and 2026.10 rejects that key, so one
+  yaml cannot serve both; give each sub-device `relation: via`.
+- Builds on ESPHome 2026.11, where `status_momentary_warning` with a name is
+  deprecated.
+- Code changes for the clang-tidy 23 findings.
+- Dependency updates.
+
 ## v1.2.1 (2026-09-13)
 
 - No change to the component.
