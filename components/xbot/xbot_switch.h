@@ -69,7 +69,7 @@ class XbotRegisterSwitch : public switch_::Switch, public Parented<XbotHub>, pub
     if (this->bit_mask_ != 0) {
       if (!this->have_raw_) {
         ESP_LOGW(XBOT_TAG, "refusing write reg=0x%02X: other flags in it not read yet", this->register_);
-        this->status_momentary_warning("write");
+        this->status_momentary_warning();
         return;
       }
       value = apply_bit(this->raw_, this->bit_mask_, want);
